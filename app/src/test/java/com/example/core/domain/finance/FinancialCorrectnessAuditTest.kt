@@ -50,7 +50,7 @@ import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [35])
 class FinancialCorrectnessAuditTest {
 
     private lateinit var context: Context

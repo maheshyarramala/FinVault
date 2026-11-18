@@ -34,7 +34,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [35])
 class ExampleRobolectricTest {
 
     @get:Rule
@@ -103,7 +103,7 @@ class ExampleRobolectricTest {
     @Test
     fun `bottom navigation switches across all five tabs and interactive filters work`() {
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("hero_balance_amount").assertIsDisplayed()
+        composeRule.onNodeWithTag("home_available_balance_amount").assertIsDisplayed()
 
         // Finance opens Expenses & Accounts by default
         composeRule.onNodeWithTag("nav_finance").performClick()
@@ -127,8 +127,14 @@ class ExampleRobolectricTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("reports_period_switcher").assertIsDisplayed()
         composeRule.onNodeWithTag("reports_period_yearly").performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag("reports_period_yearly").assertIsSelected()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            try {
+                composeRule.onNodeWithTag("reports_period_yearly").assertIsSelected()
+                true
+            } catch (_: AssertionError) {
+                false
+            }
+        }
 
         // Settings theme switching (DataStore writes asynchronously on Dispatchers.IO)
         composeRule.onNodeWithTag("nav_settings").performClick()
@@ -215,7 +221,9 @@ class ExampleRobolectricTest {
 
         // Create account first
         composeRule.onNodeWithTag("finance_btn_add_account").performClick()
-        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("account_name_input").fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithTag("account_name_input").performTextInput("SBI Checking")
         composeRule.onNodeWithTag("account_opening_input").performTextInput("10000")
         composeRule.onNodeWithTag("account_create_submit").performClick()

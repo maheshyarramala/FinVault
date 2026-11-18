@@ -95,36 +95,36 @@ interface LedgerDao {
     fun observeAccountStatementEntries(accountId: String): Flow<List<AccountStatementEntryRow>>
 
     @Query(
-        "SELECT COALESCE(SUM(total_amount_paise), 0) FROM ledger_transactions " +
-            "WHERE is_voided = 0 " +
-            "AND tx_type = 'INCOME' " +
-            "AND tx_timestamp_epoch_ms BETWEEN :startEpochMs AND :endEpochMs"
+        "SELECT COALESCE(SUM(le.amount_paise), 0) FROM ledger_entries le " +
+            "INNER JOIN ledger_transactions lt ON le.transaction_id = lt.id " +
+            "WHERE lt.is_voided = 0 AND le.ledger_class = 'INCOME' AND le.entry_side = 'CREDIT' " +
+            "AND lt.tx_timestamp_epoch_ms BETWEEN :startEpochMs AND :endEpochMs"
     )
     fun observeIncomeSumPaise(startEpochMs: Long, endEpochMs: Long): Flow<Long>
 
     @Query(
-        "SELECT COALESCE(SUM(total_amount_paise), 0) FROM ledger_transactions " +
-            "WHERE is_voided = 0 " +
-            "AND tx_type IN ('EXPENSE', 'CREDIT_CARD_EXPENSE', 'SPLIT_EXPENSE') " +
-            "AND tx_timestamp_epoch_ms BETWEEN :startEpochMs AND :endEpochMs"
+        "SELECT COALESCE(SUM(le.amount_paise), 0) FROM ledger_entries le " +
+            "INNER JOIN ledger_transactions lt ON le.transaction_id = lt.id " +
+            "WHERE lt.is_voided = 0 AND le.ledger_class = 'EXPENSE' AND le.entry_side = 'DEBIT' " +
+            "AND lt.tx_timestamp_epoch_ms BETWEEN :startEpochMs AND :endEpochMs"
     )
     fun observeExpenseSumPaise(startEpochMs: Long, endEpochMs: Long): Flow<Long>
 
     @Query(
-        "SELECT COALESCE(SUM(total_amount_paise), 0) FROM ledger_transactions " +
-            "WHERE is_voided = 0 " +
-            "AND tx_type IN ('EXPENSE', 'CREDIT_CARD_EXPENSE') " +
-            "AND tx_timestamp_epoch_ms BETWEEN :startEpochMs AND :endEpochMs"
+        "SELECT COALESCE(SUM(le.amount_paise), 0) FROM ledger_entries le " +
+            "INNER JOIN ledger_transactions lt ON le.transaction_id = lt.id " +
+            "WHERE lt.is_voided = 0 AND le.ledger_class = 'EXPENSE' AND le.entry_side = 'DEBIT' " +
+            "AND lt.tx_type IN ('EXPENSE', 'CREDIT_CARD_EXPENSE', 'DEBT_REPAYMENT') " +
+            "AND lt.tx_timestamp_epoch_ms BETWEEN :startEpochMs AND :endEpochMs"
     )
     fun observePersonalDirectExpenseSumPaise(startEpochMs: Long, endEpochMs: Long): Flow<Long>
 
     @Query(
-        "SELECT category_id AS categoryId, COALESCE(SUM(total_amount_paise), 0) AS totalPaise " +
-            "FROM ledger_transactions " +
-            "WHERE is_voided = 0 " +
-            "AND tx_type IN ('EXPENSE', 'CREDIT_CARD_EXPENSE', 'SPLIT_EXPENSE') " +
-            "AND tx_timestamp_epoch_ms BETWEEN :startEpochMs AND :endEpochMs " +
-            "GROUP BY category_id"
+        "SELECT lt.category_id AS categoryId, COALESCE(SUM(le.amount_paise), 0) AS totalPaise " +
+            "FROM ledger_entries le INNER JOIN ledger_transactions lt ON le.transaction_id = lt.id " +
+            "WHERE lt.is_voided = 0 AND le.ledger_class = 'EXPENSE' AND le.entry_side = 'DEBIT' " +
+            "AND lt.tx_timestamp_epoch_ms BETWEEN :startEpochMs AND :endEpochMs " +
+            "GROUP BY lt.category_id"
     )
     fun observeCategoryExpenseTotals(
         startEpochMs: Long,
@@ -182,6 +182,13 @@ interface LedgerDao {
 
     @Query("SELECT * FROM ledger_transactions WHERE id = :transactionId LIMIT 1")
     suspend fun getTransactionById(transactionId: String): LedgerTransactionEntity?
+
+    @Query(
+        "SELECT * FROM ledger_transactions WHERE source_module = 'DEBT' " +
+            "AND source_record_id = :debtId " +
+            "ORDER BY created_at_epoch_ms DESC, tx_timestamp_epoch_ms DESC"
+    )
+    suspend fun getAllDebtTransactions(debtId: String): List<LedgerTransactionEntity>
 
     @Transaction
     @Query("SELECT * FROM ledger_transactions WHERE id = :transactionId LIMIT 1")

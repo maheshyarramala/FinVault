@@ -33,6 +33,9 @@ sealed interface FinVaultRoute {
     data object Settings : FinVaultRoute
 
     @Serializable
+    data object DebtManagement : FinVaultRoute
+
+    @Serializable
     data object SplitBillHub : FinVaultRoute
 
     @Serializable

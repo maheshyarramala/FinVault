@@ -68,6 +68,7 @@ fun HomeScreen(
     onOpenFinanceTab: (FinanceSectionTab) -> Unit = {},
     onOpenReports: () -> Unit = {},
     onOpenSplitBill: () -> Unit = {},
+    onOpenDebtManagement: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -432,7 +433,7 @@ fun HomeScreen(
 
                     if (state.isWidgetVisible(HomeDashboardWidget.DEBTS_SUMMARY)) {
                         item(key = "widget_debts_summary") {
-                            DebtsSummaryCard(summary = state.debtSummary)
+                            DebtsSummaryCard(summary = state.debtSummary, onOpenDebtManagement = onOpenDebtManagement)
                         }
                     }
 

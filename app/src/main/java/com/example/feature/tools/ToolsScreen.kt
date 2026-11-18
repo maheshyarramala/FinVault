@@ -38,6 +38,7 @@ import com.example.core.designsystem.component.FinVaultCard
 fun ToolsScreen(
     viewModel: ToolsViewModel,
     onOpenSplitBill: () -> Unit = {},
+    onOpenDebtManagement: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -95,14 +96,15 @@ fun ToolsScreen(
             key = { it.id }
         ) { tool ->
             val isSplitBill = tool.id == "split_bill"
+            val isDebtManagement = tool.id == "debt_management"
             FinVaultCard(
                 modifier = Modifier
                     .testTag("tool_card_${tool.id}")
                     .then(
-                        if (isSplitBill) {
-                            Modifier.clickable(onClick = onOpenSplitBill)
-                        } else {
-                            Modifier
+                        when {
+                            isSplitBill -> Modifier.clickable(onClick = onOpenSplitBill)
+                            isDebtManagement -> Modifier.clickable(onClick = onOpenDebtManagement)
+                            else -> Modifier
                         }
                     )
             ) {
@@ -141,13 +143,13 @@ fun ToolsScreen(
                                 shape = MaterialTheme.shapes.extraSmall
                             ) {
                                 Text(
-                                    text = if (isSplitBill) {
-                                        "Ready • Phase 5"
-                                    } else {
-                                        stringResource(R.string.phase_badge_format, tool.targetPhase)
+                                    text = when {
+                                        isSplitBill -> "Ready • Phase 5"
+                                        isDebtManagement -> "Ready • Phase 6"
+                                        else -> stringResource(R.string.phase_badge_format, tool.targetPhase)
                                     },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (isSplitBill) {
+                                    color = if (isSplitBill || isDebtManagement) {
                                         MaterialTheme.colorScheme.primary
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant

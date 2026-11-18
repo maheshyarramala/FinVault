@@ -26,7 +26,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [35])
 class CentralLedgerEngineTest {
 
     @get:Rule
@@ -51,6 +51,87 @@ class CentralLedgerEngineTest {
     @After
     fun tearDown() {
         database.close()
+    }
+
+    @Test
+    fun `debt repayment posts principal and interest to separate ledger classes`() = runTest {
+        val bank = engine.createAccount(
+            CreateAccountSpec(
+                id = "debt_test_bank",
+                name = "Debt Test Bank",
+                accountType = AccountType.BANK,
+                openingBalancePaise = 200000L
+            )
+        )
+
+        val lent = engine.post(
+            LedgerPostSpec.DebtMovement(
+                accountId = bank.id,
+                amountPaise = 50000L,
+                kind = DebtLedgerKind.LENT_OUT,
+                description = "Lent to Ravi",
+                idempotencyKey = "debt_lent_test"
+            )
+        )
+        assertEquals(150000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+
+        val received = engine.post(
+            LedgerPostSpec.DebtMovement(
+                accountId = bank.id,
+                amountPaise = 22000L,
+                kind = DebtLedgerKind.REPAYMENT_RECEIVED,
+                principalPaise = 20000L,
+                interestPaise = 2000L,
+                description = "Repayment from Ravi",
+                idempotencyKey = "debt_received_test",
+                sourceRecordId = lent.transactionId
+            )
+        )
+        assertEquals(172000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+
+        val entries = database.ledgerDao().getEntriesForTransaction(received.transactionId)
+        assertEquals(3, entries.size)
+        assertEquals(20000L, entries.single { it.ledgerClass.name == "ASSET" && it.entrySide.name == "CREDIT" }.amountPaise)
+        assertEquals(2000L, entries.single { it.ledgerClass.name == "INCOME" }.amountPaise)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+    }
+
+    @Test
+    fun `borrowed debt repayment records interest as expense and principal against liability`() = runTest {
+        val bank = engine.createAccount(
+            CreateAccountSpec(
+                id = "borrow_test_bank",
+                name = "Borrow Test Bank",
+                accountType = AccountType.BANK,
+                openingBalancePaise = 100000L
+            )
+        )
+        engine.post(
+            LedgerPostSpec.DebtMovement(
+                accountId = bank.id,
+                amountPaise = 30000L,
+                kind = DebtLedgerKind.BORROWED_IN,
+                description = "Borrowed from lender",
+                idempotencyKey = "debt_borrowed_test"
+            )
+        )
+        val repayment = engine.post(
+            LedgerPostSpec.DebtMovement(
+                accountId = bank.id,
+                amountPaise = 11000L,
+                kind = DebtLedgerKind.REPAYMENT_PAID,
+                principalPaise = 10000L,
+                interestPaise = 1000L,
+                description = "Repayment to lender",
+                idempotencyKey = "debt_paid_test"
+            )
+        )
+        assertEquals(119000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        val entries = database.ledgerDao().getEntriesForTransaction(repayment.transactionId)
+        assertEquals(3, entries.size)
+        assertEquals(10000L, entries.single { it.ledgerClass.name == "LIABILITY" }.amountPaise)
+        assertEquals(1000L, entries.single { it.ledgerClass.name == "EXPENSE" }.amountPaise)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
     }
 
     @Test

@@ -73,4 +73,34 @@ class FinVaultConverters {
 
     @TypeConverter
     fun toSettlementDirection(raw: String): SettlementDirection = SettlementDirection.valueOf(raw)
+
+    @TypeConverter
+    fun fromDebtType(type: com.example.core.database.entity.DebtType): String = type.name
+
+    @TypeConverter
+    fun toDebtType(raw: String): com.example.core.database.entity.DebtType =
+        com.example.core.database.entity.DebtType.valueOf(raw)
+
+    @TypeConverter
+    fun fromDebtInterestType(type: com.example.core.database.entity.DebtInterestType): String = type.name
+
+    @TypeConverter
+    fun toDebtInterestType(raw: String): com.example.core.database.entity.DebtInterestType =
+        com.example.core.database.entity.DebtInterestType.valueOf(raw)
+
+    @TypeConverter
+    fun fromDebtCompoundingFrequency(
+        frequency: com.example.core.database.entity.DebtCompoundingFrequency
+    ): String = frequency.name
+
+    @TypeConverter
+    fun toDebtCompoundingFrequency(raw: String): com.example.core.database.entity.DebtCompoundingFrequency =
+        com.example.core.database.entity.DebtCompoundingFrequency.valueOf(raw)
+
+    @TypeConverter
+    fun fromDebtStatus(status: com.example.core.database.entity.DebtStatus): String = status.name
+
+    @TypeConverter
+    fun toDebtStatus(raw: String): com.example.core.database.entity.DebtStatus =
+        com.example.core.database.entity.DebtStatus.valueOf(raw)
 }

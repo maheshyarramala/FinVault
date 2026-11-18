@@ -146,6 +146,12 @@ class CentralLedgerEngine(
             idempotencyKey: String = "rev_$transactionId",
             reason: String = "Deleted by user"
         ): LedgerPostResult = reverseOrDeleteUnchecked(transactionId, idempotencyKey, reason)
+
+        suspend fun reverseAuditTransaction(
+            transactionId: String,
+            idempotencyKey: String,
+            reason: String
+        ): LedgerPostResult = reverseOrDeleteUnchecked(transactionId, idempotencyKey, reason, allowAlreadyVoided = true)
     }
 
     suspend fun <T> withAtomicLedgerLock(block: suspend LedgerTransactionScope.() -> T): T =
@@ -196,7 +202,8 @@ class CentralLedgerEngine(
     private suspend fun reverseOrDeleteUnchecked(
         transactionId: String,
         idempotencyKey: String,
-        reason: String
+        reason: String,
+        allowAlreadyVoided: Boolean = false
     ): LedgerPostResult {
         require(idempotencyKey.isNotBlank()) { "Idempotency key cannot be blank" }
 
@@ -210,9 +217,9 @@ class CentralLedgerEngine(
 
         val original = ledgerDao.getTransactionById(transactionId)
             ?: throw IllegalArgumentException("Transaction not found: $transactionId")
-        check(!original.isVoided) { "Transaction $transactionId is already voided" }
-        check(original.txType != LedgerTransactionType.REVERSAL) {
-            "Cannot reverse a reversal transaction"
+        if (!allowAlreadyVoided) {
+            check(!original.isVoided) { "Transaction $transactionId is already voided" }
+            check(original.txType != LedgerTransactionType.REVERSAL) { "Cannot reverse a reversal transaction" }
         }
 
         val now = DateTimeUtils.nowEpochMs()
@@ -319,11 +326,13 @@ class CentralLedgerEngine(
             "Original transaction ${original.id} has no ledger entries"
         }
 
-        ledgerDao.markTransactionVoided(
-            transactionId = original.id,
-            replacedById = replacedById,
-            updatedAtEpochMs = now
-        )
+        if (!original.isVoided) {
+            ledgerDao.markTransactionVoided(
+                transactionId = original.id,
+                replacedById = replacedById,
+                updatedAtEpochMs = now
+            )
+        }
 
         val reversalTxId = UUID.randomUUID().toString()
         val flippedEntries = originalEntries.mapIndexed { index, entry ->
@@ -752,6 +761,17 @@ class CentralLedgerEngine(
 
             is LedgerPostSpec.DebtMovement -> {
                 require(spec.amountPaise > 0L) { "Debt amount must be > 0 paise" }
+                require(spec.principalPaise >= 0L && spec.interestPaise >= 0L) {
+                    "Debt principal and interest cannot be negative"
+                }
+                require(Math.addExact(spec.principalPaise, spec.interestPaise) == spec.amountPaise) {
+                    "Debt total must equal principal plus interest"
+                }
+                if (spec.kind == DebtLedgerKind.LENT_OUT || spec.kind == DebtLedgerKind.BORROWED_IN) {
+                    require(spec.principalPaise == spec.amountPaise && spec.interestPaise == 0L) {
+                        "Initial debt movements must contain principal only"
+                    }
+                }
                 val account = requireActiveAssetAccount(spec.accountId)
                 val txType = when (spec.kind) {
                     DebtLedgerKind.LENT_OUT -> LedgerTransactionType.DEBT_LENT
@@ -821,51 +841,83 @@ class CentralLedgerEngine(
                         )
                     )
 
-                    DebtLedgerKind.REPAYMENT_RECEIVED -> listOf(
-                        LedgerEntryEntity(
-                            id = UUID.randomUUID().toString(),
-                            transactionId = txId,
-                            accountId = account.id,
-                            ledgerClass = LedgerAccountClass.ASSET,
-                            entrySide = EntrySide.DEBIT,
-                            amountPaise = spec.amountPaise,
-                            entryOrder = 0,
-                            memo = "Debt repayment received in ${account.name}"
-                        ),
-                        LedgerEntryEntity(
-                            id = UUID.randomUUID().toString(),
-                            transactionId = txId,
-                            accountId = null,
-                            ledgerClass = LedgerAccountClass.ASSET,
-                            entrySide = EntrySide.CREDIT,
-                            amountPaise = spec.amountPaise,
-                            entryOrder = 1,
-                            memo = "Debt receivable settled"
+                    DebtLedgerKind.REPAYMENT_RECEIVED -> buildList {
+                        add(
+                            LedgerEntryEntity(
+                                id = UUID.randomUUID().toString(),
+                                transactionId = txId,
+                                accountId = account.id,
+                                ledgerClass = LedgerAccountClass.ASSET,
+                                entrySide = EntrySide.DEBIT,
+                                amountPaise = spec.amountPaise,
+                                entryOrder = 0,
+                                memo = "Debt repayment received in ${account.name}"
+                            )
                         )
-                    )
+                        if (spec.principalPaise > 0L) add(
+                            LedgerEntryEntity(
+                                id = UUID.randomUUID().toString(),
+                                transactionId = txId,
+                                accountId = null,
+                                ledgerClass = LedgerAccountClass.ASSET,
+                                entrySide = EntrySide.CREDIT,
+                                amountPaise = spec.principalPaise,
+                                entryOrder = 1,
+                                memo = "Debt receivable principal settled"
+                            )
+                        )
+                        if (spec.interestPaise > 0L) add(
+                            LedgerEntryEntity(
+                                id = UUID.randomUUID().toString(),
+                                transactionId = txId,
+                                accountId = null,
+                                ledgerClass = LedgerAccountClass.INCOME,
+                                entrySide = EntrySide.CREDIT,
+                                amountPaise = spec.interestPaise,
+                                entryOrder = 2,
+                                memo = "Interest received on lent amount"
+                            )
+                        )
+                    }
 
-                    DebtLedgerKind.REPAYMENT_PAID -> listOf(
-                        LedgerEntryEntity(
-                            id = UUID.randomUUID().toString(),
-                            transactionId = txId,
-                            accountId = null,
-                            ledgerClass = LedgerAccountClass.LIABILITY,
-                            entrySide = EntrySide.DEBIT,
-                            amountPaise = spec.amountPaise,
-                            entryOrder = 0,
-                            memo = "Debt payable reduced"
-                        ),
-                        LedgerEntryEntity(
-                            id = UUID.randomUUID().toString(),
-                            transactionId = txId,
-                            accountId = account.id,
-                            ledgerClass = LedgerAccountClass.ASSET,
-                            entrySide = EntrySide.CREDIT,
-                            amountPaise = spec.amountPaise,
-                            entryOrder = 1,
-                            memo = "Debt repaid from ${account.name}"
+                    DebtLedgerKind.REPAYMENT_PAID -> buildList {
+                        if (spec.principalPaise > 0L) add(
+                            LedgerEntryEntity(
+                                id = UUID.randomUUID().toString(),
+                                transactionId = txId,
+                                accountId = null,
+                                ledgerClass = LedgerAccountClass.LIABILITY,
+                                entrySide = EntrySide.DEBIT,
+                                amountPaise = spec.principalPaise,
+                                entryOrder = 0,
+                                memo = "Debt payable principal reduced"
+                            )
                         )
-                    )
+                        if (spec.interestPaise > 0L) add(
+                            LedgerEntryEntity(
+                                id = UUID.randomUUID().toString(),
+                                transactionId = txId,
+                                accountId = null,
+                                ledgerClass = LedgerAccountClass.EXPENSE,
+                                entrySide = EntrySide.DEBIT,
+                                amountPaise = spec.interestPaise,
+                                entryOrder = 1,
+                                memo = "Interest expense on borrowed amount"
+                            )
+                        )
+                        add(
+                            LedgerEntryEntity(
+                                id = UUID.randomUUID().toString(),
+                                transactionId = txId,
+                                accountId = account.id,
+                                ledgerClass = LedgerAccountClass.ASSET,
+                                entrySide = EntrySide.CREDIT,
+                                amountPaise = spec.amountPaise,
+                                entryOrder = 2,
+                                memo = "Debt repayment from ${account.name}"
+                            )
+                        )
+                    }
                 }
                 tx to entries
             }

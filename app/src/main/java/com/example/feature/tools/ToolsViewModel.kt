@@ -43,6 +43,14 @@ data class ToolsUiState(
 
 private val allCatalogTools = listOf(
     ToolCatalogItem(
+        id = "debt_management",
+        title = "Debt Management",
+        description = "Track money lent and borrowed, interest and repayments",
+        category = ToolCategory.FINANCE,
+        targetPhase = 6,
+        icon = Icons.Filled.AccountBalance
+    ),
+    ToolCatalogItem(
         id = "split_bill",
         title = "Split Bill & Group Expenses",
         description = "Create groups, split unequally or by percentage, simplify debts & settle atomically",

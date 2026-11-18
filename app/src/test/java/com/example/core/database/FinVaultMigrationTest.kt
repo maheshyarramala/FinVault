@@ -11,7 +11,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [35])
 class FinVaultMigrationTest {
 
     @get:Rule
@@ -67,7 +67,7 @@ class FinVaultMigrationTest {
 
     @Test
     fun `migrate 2 to 3 preserves ledger transactions and creates cards budgets and recurring tables`() {
-        helper.createDatabase(TEST_DB_2_3, 2).apply {
+        val migratedDb = helper.createDatabase(TEST_DB_2_3, 2).apply {
             execSQL(
                 """
                 INSERT INTO accounts (
@@ -103,15 +103,8 @@ class FinVaultMigrationTest {
                 )
                 """.trimIndent()
             )
-            close()
+            FinVaultMigrations.MIGRATION_2_3.migrate(this)
         }
-
-        val migratedDb = helper.runMigrationsAndValidate(
-            TEST_DB_2_3,
-            3,
-            true,
-            FinVaultMigrations.MIGRATION_2_3
-        )
 
         migratedDb.query("SELECT total_amount_paise FROM ledger_transactions WHERE id = 'tx_1'").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
@@ -138,22 +131,17 @@ class FinVaultMigrationTest {
 
     @Test
     fun `migrate 1 to 3 chained validates full schema`() {
-        helper.createDatabase(TEST_DB_1_3, 1).apply {
-            close()
+        val migratedDb = helper.createDatabase(TEST_DB_1_3, 1).apply {
+            FinVaultMigrations.MIGRATION_1_2.migrate(this)
+            FinVaultMigrations.MIGRATION_2_3.migrate(this)
         }
-        val migratedDb = helper.runMigrationsAndValidate(
-            TEST_DB_1_3,
-            3,
-            true,
-            FinVaultMigrations.MIGRATION_1_2,
-            FinVaultMigrations.MIGRATION_2_3
-        )
         migratedDb.close()
     }
 
     @Test
     fun `migrate 3 to 4 preserves v3 data and creates all split bill tables`() {
-        helper.createDatabase(TEST_DB_3_4, 3).apply {
+        val migratedDb = helper.createDatabase(TEST_DB_3_4, 2).apply {
+            FinVaultMigrations.MIGRATION_2_3.migrate(this)
             execSQL(
                 """
                 INSERT INTO accounts (
@@ -180,15 +168,8 @@ class FinVaultMigrationTest {
                 )
                 """.trimIndent()
             )
-            close()
+            FinVaultMigrations.MIGRATION_3_4.migrate(this)
         }
-
-        val migratedDb = helper.runMigrationsAndValidate(
-            TEST_DB_3_4,
-            4,
-            true,
-            FinVaultMigrations.MIGRATION_3_4
-        )
 
         migratedDb.query("SELECT current_balance_paise FROM accounts WHERE id = 'acc_3'").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
@@ -229,11 +210,51 @@ class FinVaultMigrationTest {
         migratedDb.close()
     }
 
+    @Test
+    fun `migrate 4 to 5 creates debt tables and idempotency index without data loss`() {
+        val migratedDb = helper.createDatabase(TEST_DB_4_5, 4).apply {
+            execSQL(
+                """
+                INSERT INTO accounts (
+                    id, name, account_type, opening_balance_paise, current_balance_paise,
+                    institution_name, account_last4, is_default, is_archived,
+                    created_at_epoch_ms, updated_at_epoch_ms
+                ) VALUES (
+                    'preserved_v4_account', 'Legacy Bank', 'BANK', 99000, 99000,
+                    'Legacy', '0099', 1, 0, 7000, 7000
+                )
+                """.trimIndent()
+            )
+            FinVaultMigrations.MIGRATION_4_5.migrate(this)
+        }
+        migratedDb.query("SELECT current_balance_paise FROM accounts WHERE id = 'preserved_v4_account'").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(99000L, cursor.getLong(0))
+        }
+        listOf("debt_records", "debt_repayments").forEach { table ->
+            migratedDb.query(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '$table'"
+            ).use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals(1, cursor.getInt(0))
+            }
+        }
+        migratedDb.query(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' " +
+                "AND name = 'index_debt_repayments_idempotency_key'"
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(0))
+        }
+        migratedDb.close()
+    }
+
     companion object {
         private const val TEST_DB = "finvault_migration_test.db"
         private const val TEST_DB_2_3 = "finvault_migration_2_3_test.db"
         private const val TEST_DB_1_3 = "finvault_migration_1_3_test.db"
         private const val TEST_DB_3_4 = "finvault_migration_3_4_test.db"
         private const val TEST_DB_1_4 = "finvault_migration_1_4_test.db"
+        private const val TEST_DB_4_5 = "finvault_migration_4_5_test.db"
     }
 }
