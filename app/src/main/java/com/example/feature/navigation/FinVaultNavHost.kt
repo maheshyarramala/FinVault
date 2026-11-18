@@ -155,7 +155,8 @@ fun FinVaultNavHost(
                     factory = ReportsViewModel.factory(
                         accountRepository = appContainer.accountRepository,
                         ledgerRepository = appContainer.ledgerRepository,
-                        splitBillRepository = appContainer.splitBillRepository
+                        splitBillRepository = appContainer.splitBillRepository,
+                        debtRepository = appContainer.debtRepository
                     )
                 )
                 ReportsScreen(viewModel = reportsViewModel)
