@@ -279,15 +279,15 @@ class DebtRepository(
                 DebtCompoundingFrequency.YEARLY -> DebtInterestCalculator.CompoundingFrequency.YEARLY
             }
         )
-        val lastRepayment = debtDao.getRepayments(debtId).maxByOrNull { it.paidAtEpochMs }
-        val accrualStartEpochMs = lastRepayment?.paidAtEpochMs ?: debt.startEpochMs
+        val lastRepaymentEpochMs = debtDao.getLatestRepaymentEpochMs(debtId)
+        val accrualStartEpochMs = lastRepaymentEpochMs ?: debt.startEpochMs
         val startDate = Instant.ofEpochMilli(accrualStartEpochMs)
             .atZone(ZoneId.systemDefault()).toLocalDate()
         // Fixed interest is a one-time charge for the debt, not a recurring
         // charge after every partial repayment. Any unpaid portion is carried
         // in interestOutstandingPaise and must not be accrued a second time.
         val currentPeriodInterest = if (
-            debt.interestType == DebtInterestType.FIXED && lastRepayment != null
+            debt.interestType == DebtInterestType.FIXED && lastRepaymentEpochMs != null
         ) {
             0L
         } else {
