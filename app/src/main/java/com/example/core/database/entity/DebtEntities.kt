@@ -30,6 +30,7 @@ data class DebtRecordEntity(
     val type: DebtType,
     @ColumnInfo(name = "principal_paise") val principalPaise: Long,
     @ColumnInfo(name = "outstanding_principal_paise") val outstandingPrincipalPaise: Long,
+    @ColumnInfo(name = "interest_outstanding_paise") val interestOutstandingPaise: Long = 0L,
     @ColumnInfo(name = "annual_interest_rate_bps") val annualInterestRateBps: Int,
     @ColumnInfo(name = "interest_type") val interestType: DebtInterestType,
     @ColumnInfo(name = "fixed_interest_paise") val fixedInterestPaise: Long,
