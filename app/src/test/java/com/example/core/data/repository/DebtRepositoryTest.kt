@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.example.core.database.FinVaultDatabase
+import com.example.core.database.migration.FinVaultMigrations
 import com.example.core.database.entity.AccountType
 import com.example.core.database.entity.DebtInterestType
 import com.example.core.database.entity.DebtType
@@ -219,6 +220,70 @@ class DebtRepositoryTest {
         assertTrue(failure is IllegalStateException)
         assertEquals(before, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
         assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+    }
+
+    @Test
+    fun `failed repayment edit rolls back without voiding original transaction`() = runTest {
+        val bank = engine.createAccount(
+            CreateAccountSpec(id = "debt_rollback_bank", name = "Rollback Bank", accountType = AccountType.BANK, openingBalancePaise = 100000L)
+        )
+        val debt = repository.createDebt(
+            title = "Rollback test", personName = "Ravi", type = DebtType.LENT,
+            principalPaise = 30000L, accountId = bank.id, idempotencyKey = "rollback-debt-create"
+        )
+        val repayment = repository.recordRepayment(
+            debtId = debt.id, principalPaise = 5000L, interestPaise = 0L,
+            paymentAccountId = bank.id, idempotencyKey = "rollback-repay"
+        )
+        val balanceBefore = database.accountDao().getAccountById(bank.id)!!.currentBalancePaise
+        val debtBefore = repository.getDebt(debt.id)!!
+        val failure = runCatching {
+            repository.editLatestRepayment(repayment.id, 4000L, 0L, "missing-account")
+        }.exceptionOrNull()
+        assertTrue(failure is IllegalArgumentException)
+        assertEquals(balanceBefore, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertEquals(debtBefore.outstandingPrincipalPaise, repository.getDebt(debt.id)!!.outstandingPrincipalPaise)
+        assertEquals(false, database.ledgerDao().getTransactionById(repayment.ledgerTransactionId)!!.isVoided)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+    }
+
+    @Test
+    fun `debt and repayments survive database close and reopen`() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val dbName = "debt_restart_regression.db"
+        context.deleteDatabase(dbName)
+        database.close()
+        database = Room.databaseBuilder(context, FinVaultDatabase::class.java, dbName)
+            .addMigrations(*FinVaultMigrations.ALL_MIGRATIONS)
+            .allowMainThreadQueries()
+            .build()
+        engine = CentralLedgerEngine(database)
+        repository = DebtRepository(database, engine)
+        val bank = engine.createAccount(
+            CreateAccountSpec(id = "debt_restart_bank", name = "Restart Bank", accountType = AccountType.BANK, openingBalancePaise = 100000L)
+        )
+        val debt = repository.createDebt(
+            title = "Persistent debt", personName = "Anil", type = DebtType.LENT,
+            principalPaise = 25000L, accountId = bank.id, idempotencyKey = "restart-debt-create"
+        )
+        val repayment = repository.recordRepayment(
+            debtId = debt.id, principalPaise = 5000L, interestPaise = 0L,
+            paymentAccountId = bank.id, idempotencyKey = "restart-repay"
+        )
+        database.close()
+
+        database = Room.databaseBuilder(context, FinVaultDatabase::class.java, dbName)
+            .addMigrations(*FinVaultMigrations.ALL_MIGRATIONS)
+            .allowMainThreadQueries()
+            .build()
+        engine = CentralLedgerEngine(database)
+        repository = DebtRepository(database, engine)
+        assertEquals(20000L, repository.getDebt(debt.id)!!.outstandingPrincipalPaise)
+        assertEquals(repayment.id, database.debtDao().getRepayments(debt.id).single().id)
+        assertEquals(80000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+        database.close()
+        context.deleteDatabase(dbName)
     }
 
     @Test
