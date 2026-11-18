@@ -202,7 +202,11 @@ class DebtRepository(
             status = if (remainingPrincipal == 0L && remainingInterest == 0L) DebtStatus.SETTLED else DebtStatus.ACTIVE,
             updatedAtEpochMs = DateTimeUtils.nowEpochMs()
         ))
-        if (remainingPrincipal == 0L && remainingInterest == 0L) reminderScheduler?.cancel(debt.id)
+        if (remainingPrincipal == 0L && remainingInterest == 0L) {
+            reminderScheduler?.cancel(debt.id)
+        } else {
+            reminderScheduler?.schedule(debt.id, debt.title, debt.personName, debt.dueEpochMs)
+        }
         updated
     }
 
@@ -224,6 +228,7 @@ class DebtRepository(
             status = DebtStatus.ACTIVE,
             updatedAtEpochMs = DateTimeUtils.nowEpochMs()
         ))
+        reminderScheduler?.schedule(debt.id, debt.title, debt.personName, debt.dueEpochMs)
     }
 
     suspend fun accruedInterestPaise(
