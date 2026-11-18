@@ -103,7 +103,7 @@ class ExampleRobolectricTest {
     @Test
     fun `bottom navigation switches across all five tabs and interactive filters work`() {
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("hero_balance_amount").assertIsDisplayed()
+        composeRule.onNodeWithTag("home_available_balance_amount").assertIsDisplayed()
 
         // Finance opens Expenses & Accounts by default
         composeRule.onNodeWithTag("nav_finance").performClick()
