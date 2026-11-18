@@ -164,6 +164,8 @@ class DebtRepository(
         val totalPaise = Math.addExact(principalPaise, interestPaise)
         require(totalPaise > 0L) { "Repayment must be greater than zero" }
         val old = debtDao.getRepaymentById(repaymentId) ?: throw IllegalArgumentException("Repayment not found")
+        val oldTransaction = database.ledgerDao().getTransactionById(old.ledgerTransactionId)
+        check(oldTransaction != null && !oldTransaction.isVoided) { "Repayment is already deleted or reversed" }
         val debt = debtDao.getDebt(old.debtId) ?: throw IllegalArgumentException("Debt not found")
         check(debt.status != DebtStatus.ARCHIVED) { "Archived debts cannot be edited" }
         val latest = debtDao.getRepayments(debt.id).maxByOrNull { it.paidAtEpochMs }
@@ -191,7 +193,7 @@ class DebtRepository(
             interestPaise = interestPaise,
             totalPaise = totalPaise,
             ledgerTransactionId = result.transactionId,
-            idempotencyKey = spec.idempotencyKey
+            idempotencyKey = old.idempotencyKey
         )
         debtDao.updateRepayment(updated)
         val remainingPrincipal = restoredPrincipal - principalPaise
@@ -221,7 +223,6 @@ class DebtRepository(
             idempotencyKey = "debt_repayment_delete_${old.id}",
             reason = "Debt repayment deleted: ${debt.title}"
         )
-        debtDao.deleteRepayment(old)
         debtDao.updateDebt(debt.copy(
             outstandingPrincipalPaise = Math.addExact(debt.outstandingPrincipalPaise, old.principalPaise),
             interestOutstandingPaise = Math.addExact(debt.interestOutstandingPaise, old.interestPaise),
