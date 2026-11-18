@@ -144,7 +144,10 @@ fun FinVaultNavHost(
                 val toolsViewModel: ToolsViewModel = viewModel()
                 ToolsScreen(
                     viewModel = toolsViewModel,
-                    onOpenSplitBill = { openSplitBillHub() }
+                    onOpenSplitBill = { openSplitBillHub() },
+                    onOpenDebtManagement = {
+                        navController.navigate(FinVaultRoute.DebtManagement) { launchSingleTop = true }
+                    }
                 )
             }
             composable<FinVaultRoute.Reports> {
