@@ -48,10 +48,6 @@ fun DebtManagementScreen(
             selectedAccountId = state.accounts.first().id
         }
     }
-    LaunchedEffect(state.message, state.error) {
-        if (state.message != null || state.error != null) viewModel.clearMessages()
-    }
-
     LazyColumn(
         modifier = modifier.fillMaxSize().testTag("debt_management_screen"),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
