@@ -41,6 +41,7 @@ import com.example.core.database.entity.DebtType
 import com.example.core.database.entity.DebtInterestType
 import com.example.core.database.entity.AccountType
 import com.example.core.database.entity.DebtRepaymentEntity
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -358,6 +359,65 @@ fun DebtManagementScreen(
                     }
                     if (debt.status.name != "ARCHIVED") {
                         TextButton(onClick = { showArchiveConfirm = true }) { Text("Archive debt") }
+                    }
+                    if (showEditDebt) {
+                        AlertDialog(
+                            onDismissRequest = { showEditDebt = false },
+                            title = { Text("Edit debt details") },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(editTitle, { editTitle = it }, label = { Text("Title") })
+                                    OutlinedTextField(editPerson, { editPerson = it }, label = { Text("Person") })
+                                    OutlinedTextField(editDueDate, { editDueDate = it }, label = { Text("Due date (YYYY-MM-DD)") })
+                                    OutlinedTextField(editNotes, { editNotes = it }, label = { Text("Notes") })
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    viewModel.updateDebtDetails(debt.id, editTitle, editPerson, editDueDate, editNotes)
+                                    showEditDebt = false
+                                }) { Text("Save") }
+                            },
+                            dismissButton = { TextButton(onClick = { showEditDebt = false }) { Text("Cancel") } }
+                        )
+                    }
+                    editingRepayment?.let { repayment ->
+                        AlertDialog(
+                            onDismissRequest = { editingRepayment = null },
+                            title = { Text("Edit latest repayment") },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(editRepaymentPrincipal, { editRepaymentPrincipal = it }, label = { Text("Principal (₹)") })
+                                    OutlinedTextField(editRepaymentInterest, { editRepaymentInterest = it }, label = { Text("Interest (₹)") })
+                                    Text("Only the most recent repayment is editable to protect later interest calculations.",
+                                        style = MaterialTheme.typography.bodySmall)
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    viewModel.editLatestRepayment(
+                                        repayment.id, editRepaymentPrincipal, editRepaymentInterest,
+                                        repayment.paymentAccountId, repayment.paidAtEpochMs
+                                    )
+                                    editingRepayment = null
+                                }) { Text("Save") }
+                            },
+                            dismissButton = { TextButton(onClick = { editingRepayment = null }) { Text("Cancel") } }
+                        )
+                    }
+                    deletingRepayment?.let { repayment ->
+                        AlertDialog(
+                            onDismissRequest = { deletingRepayment = null },
+                            title = { Text("Delete repayment?") },
+                            text = { Text("The linked Finance transaction will be reversed and the outstanding debt recalculated.") },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    viewModel.deleteLatestRepayment(repayment.id)
+                                    deletingRepayment = null
+                                }) { Text("Delete") }
+                            },
+                            dismissButton = { TextButton(onClick = { deletingRepayment = null }) { Text("Cancel") } }
+                        )
                     }
                     if (showArchiveConfirm) {
                         AlertDialog(
