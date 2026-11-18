@@ -48,10 +48,11 @@ fun DebtManagementScreen(
     var annualRate by remember { mutableStateOf("0") }
     var fixedInterest by remember { mutableStateOf("0") }
     var selectedAccountId by remember { mutableStateOf("") }
+    val debtAccounts = state.accounts.filter { it.accountType != AccountType.CREDIT_CARD }
 
-    LaunchedEffect(state.accounts) {
-        if (selectedAccountId.isBlank() && state.accounts.isNotEmpty()) {
-            selectedAccountId = state.accounts.first().id
+    LaunchedEffect(debtAccounts) {
+        if (selectedAccountId.isBlank() && debtAccounts.isNotEmpty()) {
+            selectedAccountId = debtAccounts.first().id
         }
     }
     LazyColumn(
@@ -144,7 +145,7 @@ fun DebtManagementScreen(
                     }
                     Text("Account used for the original money movement", style = MaterialTheme.typography.labelMedium)
                     AccountChoices(
-                        accounts = state.accounts.filter { it.accountType != AccountType.CREDIT_CARD }.map { it.id to it.name },
+                        accounts = debtAccounts.map { it.id to it.name },
                         selectedId = selectedAccountId,
                         onSelect = { selectedAccountId = it }
                     )
