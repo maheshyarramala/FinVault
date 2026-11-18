@@ -192,7 +192,9 @@ class DebtRepositoryTest {
         repository.deleteLatestRepayment(repayment.id)
         assertEquals(30000L, repository.getDebt(debt.id)!!.outstandingPrincipalPaise)
         assertEquals(70000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
-        assertTrue(database.debtDao().getRepaymentById(repayment.id) == null)
+        assertTrue(database.debtDao().getRepaymentById(repayment.id) != null)
+        assertEquals(true, database.ledgerDao().getTransactionById(repayment.ledgerTransactionId)!!.isVoided)
+        assertTrue(database.debtDao().getRepayments(debt.id).isEmpty())
         assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
     }
 
