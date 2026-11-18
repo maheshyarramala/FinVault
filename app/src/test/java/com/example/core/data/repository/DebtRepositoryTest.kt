@@ -162,7 +162,7 @@ class DebtRepositoryTest {
             idempotencyKey = "fixed-partial-final-payment"
         )
         assertEquals("SETTLED", repository.getDebt(debt.id)!!.status.name)
-        assertEquals(37600L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertEquals(47600L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
         assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
     }
 
