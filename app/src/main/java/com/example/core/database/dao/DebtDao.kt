@@ -5,7 +5,6 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import androidx.room.Update
 import com.example.core.database.entity.DebtRecordEntity
 import com.example.core.database.entity.DebtRepaymentEntity
 import kotlinx.coroutines.flow.Flow
