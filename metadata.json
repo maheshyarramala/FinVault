@@ -1,0 +1,6 @@
+{
+  "name": "FinVault",
+  "description": "Offline-first personal finance ledger, calculator suite, split bill, loan EMI, and analytics app for India (INR).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

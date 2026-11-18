@@ -1,0 +1,104 @@
+<resources>
+    <string name="app_name">FinVault</string>
+
+    <!-- Bottom Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_finance">Finance</string>
+    <string name="nav_tools">Tools</string>
+    <string name="nav_reports">Reports</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Brand & Common -->
+    <string name="brand_tagline">Personal Finance &amp; Precision Tools</string>
+    <string name="currency_inr_label">INR (₹) • 2 Decimal Precision</string>
+    <string name="phase_badge_format">Phase %1$d</string>
+    <string name="db_version_label">Ledger DB v%1$d</string>
+
+    <!-- Home Screen -->
+    <string name="home_greeting">Financial Overview</string>
+    <string name="home_total_balance">Total Account Balance</string>
+    <string name="home_monthly_income">Monthly Income</string>
+    <string name="home_monthly_expenses">Monthly Expenses</string>
+    <string name="home_available_balance">Available Balance</string>
+    <string name="home_ledger_status_title">Central Ledger Ready</string>
+    <string name="home_ledger_status_body">Balances, credit card limits, and monthly budgets calculate strictly from verified Room ledger entries in integer paise.</string>
+    <string name="home_architecture_title">Build Roadmap</string>
+    <string name="home_architecture_subtitle">Phase 1 Foundation Active • Next: Double-Entry Ledger Engine</string>
+    <string name="home_active_accounts_count">%1$d Active Accounts</string>
+    <string name="home_categories_seeded_count">%1$d Categories Ready</string>
+    <string name="home_recent_transactions_title">Recent Transactions</string>
+    <string name="home_recent_transactions_empty_title">No Ledger Entries Yet</string>
+    <string name="home_recent_transactions_empty_body">Record an expense, income, or transfer to see real-time double-entry activity here.</string>
+    <string name="home_obligations_title">Budgets, Cards &amp; Loans</string>
+    <string name="home_obligations_empty_title">All Clear — Zero Active Obligations</string>
+    <string name="home_obligations_empty_body">Credit card due dates, monthly budgets, loan EMIs, and Split Bill balances will summarize here automatically from Room.</string>
+
+    <!-- Finance Screen -->
+    <string name="finance_title">Finance</string>
+    <string name="finance_tab_expenses">Expenses</string>
+    <string name="finance_tab_accounts">Accounts</string>
+    <string name="finance_tab_cards">Cards</string>
+    <string name="finance_tab_budgets">Budgets</string>
+    <string name="finance_expenses_empty_title">No Transactions Recorded Yet</string>
+    <string name="finance_expenses_empty_body">Record an expense, income, or transfer to post verified double-entry records into the central ledger.</string>
+    <string name="finance_accounts_empty_title">No Accounts Configured Yet</string>
+    <string name="finance_accounts_empty_body">Create your Bank, Cash, or Savings accounts with opening balances to start tracking transactions.</string>
+    <string name="finance_cards_empty_title">No Credit Cards Added</string>
+    <string name="finance_cards_empty_body">Add credit cards to track limits, available credit, billing cycles, due dates, and card payments.</string>
+    <string name="finance_budgets_empty_title">No Budgets Set for This Month</string>
+    <string name="finance_budgets_empty_body">Set an overall monthly budget or category spending limits with alert thresholds.</string>
+    <string name="finance_seeded_categories_header">Categories</string>
+    <string name="finance_filter_all">All</string>
+    <string name="finance_filter_expense">Expense</string>
+    <string name="finance_filter_income">Income</string>
+    <string name="finance_action_add_expense">+ Expense</string>
+    <string name="finance_action_add_income">+ Income</string>
+    <string name="finance_action_transfer">Transfer</string>
+    <string name="finance_action_add_account">+ Account</string>
+    <string name="finance_action_add_card">+ Card</string>
+    <string name="finance_action_add_budget">+ Budget</string>
+    <string name="finance_search_hint">Search description or notes…</string>
+
+    <!-- Tools Screen -->
+    <string name="tools_title">Tools &amp; Calculators</string>
+    <string name="tools_subtitle">Precision math, tax, loan EMI &amp; investment estimators</string>
+    <string name="tools_filter_all">All</string>
+    <string name="tools_filter_math">Calculators</string>
+    <string name="tools_filter_finance">Finance</string>
+    <string name="tools_filter_converters">Converters</string>
+    <string name="tools_filter_investments">Investments</string>
+
+    <!-- Reports Screen -->
+    <string name="reports_title">Reports &amp; Analytics</string>
+    <string name="reports_subtitle">Derived directly from the centralized financial ledger</string>
+    <string name="reports_period_daily">Daily</string>
+    <string name="reports_period_weekly">Weekly</string>
+    <string name="reports_period_monthly">Monthly</string>
+    <string name="reports_period_yearly">Yearly</string>
+    <string name="reports_net_cashflow">Net Cash Flow (%1$s)</string>
+    <string name="reports_savings_rate">Savings Rate</string>
+    <string name="reports_empty_title">Awaiting Ledger Activity</string>
+    <string name="reports_empty_body">Income vs Expense trends, category breakdowns, net worth, and PDF/CSV exports activate once ledger transactions are posted in Phase 2–8.</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance_section">Appearance &amp; Theme</string>
+    <string name="settings_theme_mode_label">Theme Mode</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_amoled">AMOLED</string>
+    <string name="settings_dynamic_color_title">Material You Dynamic Color</string>
+    <string name="settings_dynamic_color_subtitle">Blend wallpaper colors on Android 12+ (off uses FinVault Navy)</string>
+    <string name="settings_locale_section">Regional &amp; Accounting Defaults</string>
+    <string name="settings_currency_title">Primary Currency</string>
+    <string name="settings_currency_value">Indian Rupee (₹ / INR)</string>
+    <string name="settings_precision_title">Accounting Precision</string>
+    <string name="settings_precision_value">Integer Paise (1 ₹ = 100 paise)</string>
+    <string name="settings_payment_default_title">Default Payment Method</string>
+    <string name="settings_payment_default_value">Bank Account</string>
+    <string name="settings_system_section">System &amp; Architecture</string>
+    <string name="settings_offline_title">Offline-First Storage</string>
+    <string name="settings_offline_subtitle">Local Room SQLite database • No internet required</string>
+    <string name="settings_db_schema_title">Database Schema Version</string>
+</resources>
