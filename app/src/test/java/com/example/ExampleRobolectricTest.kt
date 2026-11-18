@@ -221,7 +221,9 @@ class ExampleRobolectricTest {
 
         // Create account first
         composeRule.onNodeWithTag("finance_btn_add_account").performClick()
-        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("account_name_input").fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithTag("account_name_input").performTextInput("SBI Checking")
         composeRule.onNodeWithTag("account_opening_input").performTextInput("10000")
         composeRule.onNodeWithTag("account_create_submit").performClick()
