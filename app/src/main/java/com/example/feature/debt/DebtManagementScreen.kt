@@ -32,6 +32,9 @@ import com.example.core.common.MoneyPaise
 import com.example.core.database.entity.DebtType
 import com.example.core.database.entity.DebtInterestType
 import com.example.core.database.entity.AccountType
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 @Composable
 fun DebtManagementScreen(
@@ -43,6 +46,7 @@ fun DebtManagementScreen(
     var title by remember { mutableStateOf("") }
     var person by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
+    var dueDate by remember { mutableStateOf("") }
     var debtType by remember { mutableStateOf(DebtType.LENT) }
     var interestType by remember { mutableStateOf(DebtInterestType.NONE) }
     var annualRate by remember { mutableStateOf("0") }
@@ -115,6 +119,13 @@ fun DebtManagementScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
+                    OutlinedTextField(
+                        value = dueDate,
+                        onValueChange = { dueDate = it },
+                        label = { Text("Due date (YYYY-MM-DD, optional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
                     Text("Interest terms", style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         DebtInterestType.entries.forEach { option ->
@@ -153,11 +164,12 @@ fun DebtManagementScreen(
                         onClick = {
                             viewModel.createDebt(
                                 title, person, amount, debtType, selectedAccountId,
-                                interestType, annualRate, fixedInterest
+                                interestType, annualRate, fixedInterest, dueDate
                             )
                             title = ""
                             person = ""
                             amount = ""
+                            dueDate = ""
                         },
                         enabled = title.isNotBlank() && person.isNotBlank() &&
                             amount.isNotBlank() && selectedAccountId.isNotBlank(),
@@ -198,6 +210,17 @@ fun DebtManagementScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text("Unpaid interest: ${MoneyPaise(debt.interestOutstandingPaise).formatInr()}")
+                    debt.dueEpochMs?.let { dueEpochMs ->
+                        val dueLocalDate = Instant.ofEpochMilli(dueEpochMs)
+                            .atZone(ZoneId.systemDefault()).toLocalDate()
+                        val overdue = debt.status.name == "ACTIVE" &&
+                            debt.outstandingPrincipalPaise > 0L && dueLocalDate.isBefore(LocalDate.now())
+                        Text(
+                            text = if (overdue) "Overdue • Due ${dueLocalDate}" else "Due ${dueLocalDate}",
+                            color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                     if (debt.status.name == "ACTIVE") {
                         Spacer(Modifier.height(4.dp))
                         Text("Record repayment", style = MaterialTheme.typography.titleSmall)
