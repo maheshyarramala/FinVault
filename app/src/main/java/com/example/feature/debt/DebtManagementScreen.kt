@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -178,6 +179,7 @@ fun DebtManagementScreen(
         items(state.debts, key = { it.id }) { debt ->
             var repayPrincipal by remember(debt.id) { mutableStateOf("") }
             var repayInterest by remember(debt.id) { mutableStateOf("0") }
+            var showArchiveConfirm by remember(debt.id) { mutableStateOf(false) }
             Card(modifier = Modifier.fillMaxWidth().testTag("debt_card_${debt.id}")) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -190,9 +192,10 @@ fun DebtManagementScreen(
                     Text("${debt.personName} • ${if (debt.type == DebtType.LENT) "Lent" else "Borrowed"}")
                     Text("Principal: ${MoneyPaise(debt.principalPaise).formatInr()}")
                     Text(
-                        "Outstanding: ${MoneyPaise(debt.outstandingPrincipalPaise).formatInr()}",
+                        "Outstanding principal: ${MoneyPaise(debt.outstandingPrincipalPaise).formatInr()}",
                         style = MaterialTheme.typography.titleMedium
                     )
+                    Text("Unpaid interest: ${MoneyPaise(debt.interestOutstandingPaise).formatInr()}")
                     if (debt.status.name == "ACTIVE") {
                         Spacer(Modifier.height(4.dp))
                         Text("Record repayment", style = MaterialTheme.typography.titleSmall)
@@ -224,6 +227,29 @@ fun DebtManagementScreen(
                             enabled = repayPrincipal.isNotBlank() && selectedAccountId.isNotBlank(),
                             modifier = Modifier.fillMaxWidth()
                         ) { Text(if (debt.type == DebtType.LENT) "Record received" else "Record paid") }
+                    }
+                    if (debt.status.name != "ARCHIVED") {
+                        TextButton(onClick = { showArchiveConfirm = true }) { Text("Archive debt") }
+                    }
+                    if (showArchiveConfirm) {
+                        AlertDialog(
+                            onDismissRequest = { showArchiveConfirm = false },
+                            title = { Text("Archive this debt?") },
+                            text = {
+                                Text("This will reverse the original debt movement and all repayments in Finance, while keeping the debt history archived.")
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        showArchiveConfirm = false
+                                        viewModel.archiveDebt(debt.id)
+                                    }
+                                ) { Text("Archive") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showArchiveConfirm = false }) { Text("Cancel") }
+                            }
+                        )
                     }
                 }
             }
