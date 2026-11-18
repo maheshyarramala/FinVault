@@ -127,8 +127,14 @@ class ExampleRobolectricTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("reports_period_switcher").assertIsDisplayed()
         composeRule.onNodeWithTag("reports_period_yearly").performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithTag("reports_period_yearly").assertIsSelected()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            try {
+                composeRule.onNodeWithTag("reports_period_yearly").assertIsSelected()
+                true
+            } catch (_: AssertionError) {
+                false
+            }
+        }
 
         // Settings theme switching (DataStore writes asynchronously on Dispatchers.IO)
         composeRule.onNodeWithTag("nav_settings").performClick()
