@@ -125,13 +125,13 @@ class DebtManagementViewModel(
     fun observeRepayments(debtId: String): Flow<List<DebtRepaymentEntity>> =
         debtRepository.observeRepayments(debtId)
 
-    fun updateDebtDetails(debtId: String, title: String, person: String, dueDate: String, notes: String) {
+    fun updateDebtDetails(debtId: String, title: String, person: String, dueDate: String, notes: String, principal: String) {
         viewModelScope.launch {
             runCatching {
                 val dueEpochMs = dueDate.trim().takeIf { it.isNotEmpty() }?.let { date ->
                     LocalDate.parse(date).atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                 }
-                debtRepository.updateDebtDetails(debtId, title, person, dueEpochMs, notes)
+                debtRepository.updateDebtDetails(debtId, title, person, dueEpochMs, notes, principal.toPaise())
             }.onSuccess {
                 _uiState.update { it.copy(message = "Debt details updated", error = null) }
             }.onFailure { error ->
