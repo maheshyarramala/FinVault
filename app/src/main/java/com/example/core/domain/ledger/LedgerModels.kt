@@ -106,6 +106,10 @@ sealed interface LedgerPostSpec {
         val accountId: String,
         val amountPaise: Long,
         val kind: DebtLedgerKind,
+        /** Principal component of a repayment; defaults to the full amount for principal-only movements. */
+        val principalPaise: Long = amountPaise,
+        /** Interest component, classified separately from principal in the ledger. */
+        val interestPaise: Long = 0L,
         override val description: String,
         override val notes: String? = null,
         override val timestampEpochMs: Long = DateTimeUtils.nowEpochMs(),
