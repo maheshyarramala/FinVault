@@ -361,6 +361,7 @@ fun EmiAndCardRemindersCard(
 @Composable
 fun DebtsSummaryCard(
     summary: DebtLedgerSummary,
+    onOpenDebtManagement: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val semantic = LocalFinVaultColors.current
@@ -434,6 +435,7 @@ fun DebtsSummaryCard(
                 )
             }
         }
+        TextButton(onClick = onOpenDebtManagement) { Text("Manage debts and repayments") }
         if (summary.transactionCount == 0) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
