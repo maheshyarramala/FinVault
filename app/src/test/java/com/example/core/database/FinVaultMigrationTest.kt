@@ -67,7 +67,7 @@ class FinVaultMigrationTest {
 
     @Test
     fun `migrate 2 to 3 preserves ledger transactions and creates cards budgets and recurring tables`() {
-        helper.createDatabase(TEST_DB_2_3, 2).apply {
+        val migratedDb = helper.createDatabase(TEST_DB_2_3, 2).apply {
             execSQL(
                 """
                 INSERT INTO accounts (
@@ -104,10 +104,7 @@ class FinVaultMigrationTest {
                 """.trimIndent()
             )
             FinVaultMigrations.MIGRATION_2_3.migrate(this)
-            close()
         }
-
-        val migratedDb = helper.openDatabase(TEST_DB_2_3)
 
         migratedDb.query("SELECT total_amount_paise FROM ledger_transactions WHERE id = 'tx_1'").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
@@ -134,9 +131,6 @@ class FinVaultMigrationTest {
 
     @Test
     fun `migrate 1 to 3 chained validates full schema`() {
-        helper.createDatabase(TEST_DB_1_3, 1).apply {
-            close()
-        }
         val migratedDb = helper.createDatabase(TEST_DB_1_3, 1).apply {
             FinVaultMigrations.MIGRATION_1_2.migrate(this)
             FinVaultMigrations.MIGRATION_2_3.migrate(this)
@@ -146,7 +140,8 @@ class FinVaultMigrationTest {
 
     @Test
     fun `migrate 3 to 4 preserves v3 data and creates all split bill tables`() {
-        helper.createDatabase(TEST_DB_3_4, 3).apply {
+        val migratedDb = helper.createDatabase(TEST_DB_3_4, 2).apply {
+            FinVaultMigrations.MIGRATION_2_3.migrate(this)
             execSQL(
                 """
                 INSERT INTO accounts (
@@ -173,12 +168,8 @@ class FinVaultMigrationTest {
                 )
                 """.trimIndent()
             )
-            FinVaultMigrations.MIGRATION_2_3.migrate(this)
             FinVaultMigrations.MIGRATION_3_4.migrate(this)
-            close()
         }
-
-        val migratedDb = helper.openDatabase(TEST_DB_3_4)
 
         migratedDb.query("SELECT current_balance_paise FROM accounts WHERE id = 'acc_3'").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
