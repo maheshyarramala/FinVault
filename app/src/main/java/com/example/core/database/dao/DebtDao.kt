@@ -38,6 +38,15 @@ interface DebtDao {
     @Update
     suspend fun updateRepayment(repayment: DebtRepaymentEntity)
 
+    @Query("SELECT * FROM debt_repayments WHERE id = :repaymentId LIMIT 1")
+    suspend fun getRepaymentById(repaymentId: String): DebtRepaymentEntity?
+
+    @Query("SELECT * FROM debt_repayments WHERE id = :repaymentId LIMIT 1")
+    suspend fun getRepaymentsForEditById(repaymentId: String): List<DebtRepaymentEntity>
+
+    @androidx.room.Delete
+    suspend fun deleteRepayment(repayment: DebtRepaymentEntity)
+
     @Query("SELECT * FROM debt_repayments WHERE idempotency_key = :key LIMIT 1")
     suspend fun getRepaymentByIdempotencyKey(key: String): DebtRepaymentEntity?
 
