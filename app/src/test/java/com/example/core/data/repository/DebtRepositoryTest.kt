@@ -76,6 +76,8 @@ class DebtRepositoryTest {
         assertEquals(80500L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
         assertEquals(20000L, repository.getDebt(debt.id)!!.outstandingPrincipalPaise)
         assertEquals(10500L, repayment.totalPaise)
+        assertEquals(500L, database.ledgerDao().observeIncomeSumPaise(0L, Long.MAX_VALUE).first())
+        assertEquals(0L, database.ledgerDao().observeExpenseSumPaise(0L, Long.MAX_VALUE).first())
 
         val entries = database.ledgerDao().getEntriesForTransaction(repayment.ledgerTransactionId)
         assertEquals(10000L, entries.single { it.ledgerClass.name == "ASSET" && it.entrySide.name == "CREDIT" }.amountPaise)
@@ -116,6 +118,9 @@ class DebtRepositoryTest {
         assertEquals(47600L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
         assertEquals(0L, repository.getDebt(debt.id)!!.outstandingPrincipalPaise)
         assertEquals("SETTLED", repository.getDebt(debt.id)!!.status.name)
+        assertEquals(2400L, database.ledgerDao().observeExpenseSumPaise(0L, Long.MAX_VALUE).first())
+        assertEquals(2400L, database.ledgerDao().observePersonalDirectExpenseSumPaise(0L, Long.MAX_VALUE).first())
+        assertEquals(0L, database.ledgerDao().observeIncomeSumPaise(0L, Long.MAX_VALUE).first())
         assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
     }
 
