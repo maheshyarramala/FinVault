@@ -119,6 +119,40 @@ class DebtRepositoryTest {
     }
 
     @Test
+    fun `archive reverses all debt movements but retains archived audit record`() = runTest {
+        val bank = engine.createAccount(
+            CreateAccountSpec(
+                id = "debt_archive_bank",
+                name = "Archive Bank",
+                accountType = AccountType.BANK,
+                openingBalancePaise = 100000L
+            )
+        )
+        val debt = repository.createDebt(
+            title = "Archive test",
+            personName = "Person",
+            type = DebtType.LENT,
+            principalPaise = 30000L,
+            accountId = bank.id,
+            idempotencyKey = "archive-debt-001"
+        )
+        repository.recordRepayment(
+            debtId = debt.id,
+            principalPaise = 10000L,
+            interestPaise = 0L,
+            paymentAccountId = bank.id,
+            idempotencyKey = "archive-repayment-001"
+        )
+        assertEquals(80000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+
+        repository.archiveDebt(debt.id)
+
+        assertEquals(100000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertEquals("ARCHIVED", repository.getDebt(debt.id)!!.status.name)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+    }
+
+    @Test
     fun `debt creation with same idempotency key does not duplicate debt or ledger movement`() = runTest {
         val bank = engine.createAccount(
             CreateAccountSpec(
