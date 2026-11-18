@@ -146,6 +146,12 @@ class CentralLedgerEngine(
             idempotencyKey: String = "rev_$transactionId",
             reason: String = "Deleted by user"
         ): LedgerPostResult = reverseOrDeleteUnchecked(transactionId, idempotencyKey, reason)
+
+        suspend fun reverseAuditTransaction(
+            transactionId: String,
+            idempotencyKey: String,
+            reason: String
+        ): LedgerPostResult = reverseOrDeleteUnchecked(transactionId, idempotencyKey, reason, allowAlreadyVoided = true)
     }
 
     suspend fun <T> withAtomicLedgerLock(block: suspend LedgerTransactionScope.() -> T): T =
@@ -196,7 +202,8 @@ class CentralLedgerEngine(
     private suspend fun reverseOrDeleteUnchecked(
         transactionId: String,
         idempotencyKey: String,
-        reason: String
+        reason: String,
+        allowAlreadyVoided: Boolean = false
     ): LedgerPostResult {
         require(idempotencyKey.isNotBlank()) { "Idempotency key cannot be blank" }
 
@@ -210,7 +217,10 @@ class CentralLedgerEngine(
 
         val original = ledgerDao.getTransactionById(transactionId)
             ?: throw IllegalArgumentException("Transaction not found: $transactionId")
-        check(!original.isVoided) { "Transaction $transactionId is already voided" }
+        if (!allowAlreadyVoided) {
+            check(!original.isVoided) { "Transaction $transactionId is already voided" }
+            check(original.txType != LedgerTransactionType.REVERSAL) { "Cannot reverse a reversal transaction" }
+        }
 
         val now = DateTimeUtils.nowEpochMs()
         val reversalId = postReversalEntries(
