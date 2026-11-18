@@ -140,11 +140,11 @@ class DebtManagementViewModel(
         }
     }
 
-    fun editLatestRepayment(repaymentId: String, principal: String, interest: String, accountId: String, paidAtEpochMs: Long) {
+    fun editLatestRepayment(repaymentId: String, principal: String, interest: String, accountId: String) {
         viewModelScope.launch {
             runCatching {
                 debtRepository.editLatestRepayment(
-                    repaymentId, principal.toPaise(), interest.ifBlank { "0" }.toPaise(), accountId, paidAtEpochMs
+                    repaymentId, principal.toPaise(), interest.ifBlank { "0" }.toPaise(), accountId
                 )
             }.onSuccess {
                 _uiState.update { it.copy(message = "Latest repayment updated", error = null) }
