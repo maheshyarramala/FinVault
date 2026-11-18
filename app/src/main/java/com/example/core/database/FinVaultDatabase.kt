@@ -9,6 +9,7 @@ import com.example.core.database.dao.AccountDao
 import com.example.core.database.dao.BudgetDao
 import com.example.core.database.dao.CategoryDao
 import com.example.core.database.dao.CreditCardDao
+import com.example.core.database.dao.DebtDao
 import com.example.core.database.dao.LedgerDao
 import com.example.core.database.dao.RecurringRuleDao
 import com.example.core.database.dao.SplitBillDao
@@ -17,6 +18,8 @@ import com.example.core.database.entity.BudgetEntity
 import com.example.core.database.entity.CardStatementEntity
 import com.example.core.database.entity.CategoryEntity
 import com.example.core.database.entity.CreditCardEntity
+import com.example.core.database.entity.DebtRecordEntity
+import com.example.core.database.entity.DebtRepaymentEntity
 import com.example.core.database.entity.LedgerEntryEntity
 import com.example.core.database.entity.LedgerTransactionEntity
 import com.example.core.database.entity.RecurringRuleEntity
@@ -45,7 +48,9 @@ import com.example.core.database.migration.FinVaultMigrations
         SplitParticipantEntity::class,
         SplitExpenseEntity::class,
         SplitExpenseShareEntity::class,
-        SplitSettlementEntity::class
+        SplitSettlementEntity::class,
+        DebtRecordEntity::class,
+        DebtRepaymentEntity::class
     ],
     version = FinVaultDatabase.DATABASE_VERSION,
     exportSchema = true
@@ -60,9 +65,10 @@ abstract class FinVaultDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
     abstract fun recurringRuleDao(): RecurringRuleDao
     abstract fun splitBillDao(): SplitBillDao
+    abstract fun debtDao(): DebtDao
 
     companion object {
-        const val DATABASE_VERSION = 4
+        const val DATABASE_VERSION = 5
         const val DATABASE_NAME = "finvault_ledger.db"
 
         fun create(context: Context): FinVaultDatabase =
