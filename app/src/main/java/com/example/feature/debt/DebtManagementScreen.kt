@@ -274,6 +274,45 @@ fun DebtManagementScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text("Unpaid interest: ${MoneyPaise(debt.interestOutstandingPaise).formatInr()}")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { showDetails = !showDetails }) {
+                            Text(if (showDetails) "Hide details" else "Details & history")
+                        }
+                        if (debt.status.name != "ARCHIVED") {
+                            TextButton(onClick = { showEditDebt = true }) { Text("Edit debt") }
+                        }
+                    }
+                    if (showDetails) {
+                        Text("Repayment history", style = MaterialTheme.typography.titleSmall)
+                        if (repayments.isEmpty()) {
+                            Text("No repayments recorded yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            repayments.forEachIndexed { index, repayment ->
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(
+                                        "${Instant.ofEpochMilli(repayment.paidAtEpochMs).atZone(ZoneId.systemDefault()).toLocalDate()} • ${MoneyPaise(repayment.totalPaise).formatInr()}",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        "Principal ${MoneyPaise(repayment.principalPaise).formatInr()} • Interest ${MoneyPaise(repayment.interestPaise).formatInr()}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (index == 0 && debt.status.name != "ARCHIVED") {
+                                        Row {
+                                            TextButton(onClick = {
+                                                editingRepayment = repayment
+                                                editRepaymentPrincipal = BigDecimal(repayment.principalPaise).movePointLeft(2).toPlainString()
+                                                editRepaymentInterest = BigDecimal(repayment.interestPaise).movePointLeft(2).toPlainString()
+                                            }) { Text("Edit latest") }
+                                            TextButton(onClick = { deletingRepayment = repayment }) { Text("Delete latest") }
+                                        }
+                                    }
+                                }
+                                if (index < repayments.lastIndex) androidx.compose.material3.HorizontalDivider()
+                            }
+                        }
+                    }
                     debt.dueEpochMs?.let { dueEpochMs ->
                         val dueLocalDate = Instant.ofEpochMilli(dueEpochMs)
                             .atZone(ZoneId.systemDefault()).toLocalDate()
