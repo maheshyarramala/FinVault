@@ -46,6 +46,11 @@ interface DebtDao {
     @Update
     suspend fun updateRepayment(repayment: DebtRepaymentEntity)
 
+    // Includes reversed/deleted rows: accrued interest must continue from the
+    // last repayment event, even when that repayment was later reversed.
+    @Query("SELECT paid_at_epoch_ms FROM debt_repayments WHERE debt_id = :debtId ORDER BY paid_at_epoch_ms DESC LIMIT 1")
+    suspend fun getLatestRepaymentEpochMs(debtId: String): Long?
+
     @Query("SELECT * FROM debt_repayments WHERE id = :repaymentId LIMIT 1")
     suspend fun getRepaymentById(repaymentId: String): DebtRepaymentEntity?
 
