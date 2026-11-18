@@ -1,6 +1,7 @@
 package com.example.feature.debt
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.core.data.repository.AccountRepository
 import com.example.core.data.repository.DebtRepository
@@ -86,6 +87,17 @@ class DebtManagementViewModel(
             }.onFailure { error ->
                 _uiState.update { it.copy(error = error.message ?: "Unable to record repayment", message = null) }
             }
+        }
+    }
+
+    companion object {
+        fun factory(
+            debtRepository: DebtRepository,
+            accountRepository: AccountRepository
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                DebtManagementViewModel(debtRepository, accountRepository) as T
         }
     }
 
