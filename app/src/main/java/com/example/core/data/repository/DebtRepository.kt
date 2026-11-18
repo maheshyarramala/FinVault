@@ -12,6 +12,7 @@ import com.example.core.domain.debt.DebtInterestCalculator
 import com.example.core.domain.ledger.CentralLedgerEngine
 import com.example.core.domain.ledger.DebtLedgerKind
 import com.example.core.domain.ledger.LedgerPostSpec
+import com.example.core.notifications.DebtReminderScheduler
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -24,7 +25,8 @@ import kotlinx.coroutines.flow.Flow
  */
 class DebtRepository(
     private val database: FinVaultDatabase,
-    private val ledgerEngine: CentralLedgerEngine
+    private val ledgerEngine: CentralLedgerEngine,
+    private val reminderScheduler: DebtReminderScheduler? = null
 ) {
     private val debtDao = database.debtDao()
 
@@ -94,7 +96,10 @@ class DebtRepository(
                 notes = notes?.trim()?.ifBlank { null },
                 createdAtEpochMs = DateTimeUtils.nowEpochMs(),
                 updatedAtEpochMs = DateTimeUtils.nowEpochMs()
-            ).also { debtDao.insertDebt(it) }
+            ).also {
+                debtDao.insertDebt(it)
+                reminderScheduler?.schedule(it.id, it.title, it.personName, it.dueEpochMs)
+            }
         }
     }
 
@@ -116,7 +121,10 @@ class DebtRepository(
             dueEpochMs = dueEpochMs,
             notes = notes?.trim()?.ifBlank { null },
             updatedAtEpochMs = DateTimeUtils.nowEpochMs()
-        ).also { debtDao.updateDebt(it) }
+        ).also {
+            debtDao.updateDebt(it)
+            reminderScheduler?.schedule(it.id, it.title, it.personName, it.dueEpochMs)
+        }
     }
 
     /**
@@ -143,6 +151,7 @@ class DebtRepository(
         debtDao.updateDebt(
             debt.copy(status = DebtStatus.ARCHIVED, updatedAtEpochMs = DateTimeUtils.nowEpochMs())
         )
+        reminderScheduler?.cancel(debt.id)
     }
 
     suspend fun accruedInterestPaise(
@@ -253,6 +262,7 @@ class DebtRepository(
                     updatedAtEpochMs = now
                 )
             )
+            if (remaining == 0L && remainingInterest == 0L) reminderScheduler?.cancel(debt.id)
             repayment
         }
     }
