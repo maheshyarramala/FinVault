@@ -134,8 +134,8 @@ class ReportsViewModel(
             splitReimbursementsReceived = splitPortfolio.reimbursementsReceivedTotal,
             outstandingSplitReceivables = splitPortfolio.youAreOwed,
             splitPayables = splitPortfolio.youOwe,
-            lentOutstanding = MoneyPaise(debts.filter { it.status == DebtStatus.ACTIVE && it.type.name == "LENT" }.sumOf { it.outstandingPrincipalPaise }),
-            borrowedOutstanding = MoneyPaise(debts.filter { it.status == DebtStatus.ACTIVE && it.type.name == "BORROWED" }.sumOf { it.outstandingPrincipalPaise }),
+            lentOutstanding = MoneyPaise(debts.filter { it.status == DebtStatus.ACTIVE && it.type.name == "LENT" }.sumOf { Math.addExact(it.outstandingPrincipalPaise, it.interestOutstandingPaise) }),
+            borrowedOutstanding = MoneyPaise(debts.filter { it.status == DebtStatus.ACTIVE && it.type.name == "BORROWED" }.sumOf { Math.addExact(it.outstandingPrincipalPaise, it.interestOutstandingPaise) }),
             overdueDebtCount = debts.count { debt ->
                 debt.status == DebtStatus.ACTIVE && (debt.outstandingPrincipalPaise > 0L || debt.interestOutstandingPaise > 0L) && debt.dueEpochMs?.let { due ->
                     Instant.ofEpochMilli(due).atZone(ZoneId.systemDefault()).toLocalDate().isBefore(LocalDate.now())
