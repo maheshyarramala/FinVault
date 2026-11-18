@@ -245,6 +245,7 @@ fun DebtManagementScreen(
             var showDetails by remember(debt.id) { mutableStateOf(false) }
             var showEditDebt by remember(debt.id) { mutableStateOf(false) }
             var editTitle by remember(debt.id) { mutableStateOf(debt.title) }
+            var editPrincipal by remember(debt.id) { mutableStateOf(BigDecimal(debt.principalPaise).movePointLeft(2).toPlainString()) }
             var editPerson by remember(debt.id) { mutableStateOf(debt.personName) }
             var editDueDate by remember(debt.id) {
                 mutableStateOf(debt.dueEpochMs?.let {
@@ -256,6 +257,7 @@ fun DebtManagementScreen(
             var deletingRepayment by remember(debt.id) { mutableStateOf<DebtRepaymentEntity?>(null) }
             var editRepaymentPrincipal by remember(debt.id) { mutableStateOf("") }
             var editRepaymentInterest by remember(debt.id) { mutableStateOf("0") }
+            var editRepaymentAccountId by remember(debt.id) { mutableStateOf("") }
             var repayPrincipal by remember(debt.id) { mutableStateOf("") }
             var repayInterest by remember(debt.id) { mutableStateOf("0") }
             var showArchiveConfirm by remember(debt.id) { mutableStateOf(false) }
@@ -303,6 +305,7 @@ fun DebtManagementScreen(
                                         Row {
                                             TextButton(onClick = {
                                                 editingRepayment = repayment
+                                                editRepaymentAccountId = repayment.paymentAccountId
                                                 editRepaymentPrincipal = BigDecimal(repayment.principalPaise).movePointLeft(2).toPlainString()
                                                 editRepaymentInterest = BigDecimal(repayment.interestPaise).movePointLeft(2).toPlainString()
                                             }) { Text("Edit latest") }
@@ -367,6 +370,7 @@ fun DebtManagementScreen(
                             text = {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     OutlinedTextField(editTitle, { editTitle = it }, label = { Text("Title") })
+                                    OutlinedTextField(editPrincipal, { editPrincipal = it }, label = { Text("Principal (₹)") })
                                     OutlinedTextField(editPerson, { editPerson = it }, label = { Text("Person") })
                                     OutlinedTextField(editDueDate, { editDueDate = it }, label = { Text("Due date (YYYY-MM-DD)") })
                                     OutlinedTextField(editNotes, { editNotes = it }, label = { Text("Notes") })
@@ -374,7 +378,7 @@ fun DebtManagementScreen(
                             },
                             confirmButton = {
                                 TextButton(onClick = {
-                                    viewModel.updateDebtDetails(debt.id, editTitle, editPerson, editDueDate, editNotes)
+                                    viewModel.updateDebtDetails(debt.id, editTitle, editPerson, editDueDate, editNotes, editPrincipal)
                                     showEditDebt = false
                                 }) { Text("Save") }
                             },
@@ -391,13 +395,19 @@ fun DebtManagementScreen(
                                     OutlinedTextField(editRepaymentInterest, { editRepaymentInterest = it }, label = { Text("Interest (₹)") })
                                     Text("Only the most recent repayment is editable to protect later interest calculations.",
                                         style = MaterialTheme.typography.bodySmall)
+                                    Text("Receive / pay through account", style = MaterialTheme.typography.labelMedium)
+                                    AccountChoices(
+                                        accounts = debtAccounts.map { it.id to it.name },
+                                        selectedId = editRepaymentAccountId,
+                                        onSelect = { editRepaymentAccountId = it }
+                                    )
                                 }
                             },
                             confirmButton = {
                                 TextButton(onClick = {
                                     viewModel.editLatestRepayment(
                                         repayment.id, editRepaymentPrincipal, editRepaymentInterest,
-                                        repayment.paymentAccountId
+                                        editRepaymentAccountId
                                     )
                                     editingRepayment = null
                                 }) { Text("Save") }
