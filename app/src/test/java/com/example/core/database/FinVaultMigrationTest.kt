@@ -213,7 +213,23 @@ class FinVaultMigrationTest {
     @Test
     fun `migrate 4 to 5 creates debt tables and idempotency index without data loss`() {
         val migratedDb = helper.createDatabase(TEST_DB_4_5, 4).apply {
+            execSQL(
+                """
+                INSERT INTO accounts (
+                    id, name, account_type, opening_balance_paise, current_balance_paise,
+                    institution_name, account_last4, is_default, is_archived,
+                    created_at_epoch_ms, updated_at_epoch_ms
+                ) VALUES (
+                    'preserved_v4_account', 'Legacy Bank', 'BANK', 99000, 99000,
+                    'Legacy', '0099', 1, 0, 7000, 7000
+                )
+                """.trimIndent()
+            )
             FinVaultMigrations.MIGRATION_4_5.migrate(this)
+        }
+        migratedDb.query("SELECT current_balance_paise FROM accounts WHERE id = 'preserved_v4_account'").use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(99000L, cursor.getLong(0))
         }
         listOf("debt_records", "debt_repayments").forEach { table ->
             migratedDb.query(
