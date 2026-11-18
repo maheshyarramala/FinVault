@@ -77,7 +77,7 @@ class DebtRepositoryTest {
         assertEquals(10500L, repayment.totalPaise)
 
         val entries = database.ledgerDao().getEntriesForTransaction(repayment.ledgerTransactionId)
-        assertEquals(20000L, entries.single { it.ledgerClass.name == "ASSET" && it.entrySide.name == "CREDIT" }.amountPaise)
+        assertEquals(10000L, entries.single { it.ledgerClass.name == "ASSET" && it.entrySide.name == "CREDIT" }.amountPaise)
         assertEquals(500L, entries.single { it.ledgerClass.name == "INCOME" }.amountPaise)
         assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
     }
