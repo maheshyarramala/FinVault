@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.common.MoneyPaise
 import com.example.core.database.entity.DebtType
+import com.example.core.database.entity.DebtInterestType
 
 @Composable
 fun DebtManagementScreen(
@@ -41,6 +42,9 @@ fun DebtManagementScreen(
     var person by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var debtType by remember { mutableStateOf(DebtType.LENT) }
+    var interestType by remember { mutableStateOf(DebtInterestType.NONE) }
+    var annualRate by remember { mutableStateOf("0") }
+    var fixedInterest by remember { mutableStateOf("0") }
     var selectedAccountId by remember { mutableStateOf("") }
 
     LaunchedEffect(state.accounts) {
@@ -108,6 +112,34 @@ fun DebtManagementScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
+                    Text("Interest terms", style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        DebtInterestType.entries.forEach { option ->
+                            FilterChip(
+                                selected = interestType == option,
+                                onClick = { interestType = option },
+                                label = { Text(option.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                            )
+                        }
+                    }
+                    if (interestType == DebtInterestType.SIMPLE || interestType == DebtInterestType.COMPOUND) {
+                        OutlinedTextField(
+                            value = annualRate,
+                            onValueChange = { annualRate = it },
+                            label = { Text("Annual rate (%)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                    if (interestType == DebtInterestType.FIXED) {
+                        OutlinedTextField(
+                            value = fixedInterest,
+                            onValueChange = { fixedInterest = it },
+                            label = { Text("Fixed interest (₹)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
                     Text("Account used for the original money movement", style = MaterialTheme.typography.labelMedium)
                     AccountChoices(
                         accounts = state.accounts.map { it.id to it.name },
@@ -116,7 +148,10 @@ fun DebtManagementScreen(
                     )
                     Button(
                         onClick = {
-                            viewModel.createDebt(title, person, amount, debtType, selectedAccountId)
+                            viewModel.createDebt(
+                                title, person, amount, debtType, selectedAccountId,
+                                interestType, annualRate, fixedInterest
+                            )
                             title = ""
                             person = ""
                             amount = ""
