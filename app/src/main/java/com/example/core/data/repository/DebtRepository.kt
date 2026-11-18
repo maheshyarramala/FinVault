@@ -98,6 +98,53 @@ class DebtRepository(
         }
     }
 
+    suspend fun updateDebtDetails(
+        debtId: String,
+        title: String,
+        personName: String,
+        dueEpochMs: Long?,
+        notes: String?
+    ): DebtRecordEntity = ledgerEngine.withAtomicLedgerLock {
+        require(title.isNotBlank()) { "Debt title cannot be blank" }
+        require(personName.isNotBlank()) { "Person name cannot be blank" }
+        val debt = debtDao.getDebt(debtId) ?: throw IllegalArgumentException("Debt not found")
+        check(debt.status != DebtStatus.ARCHIVED) { "Archived debts cannot be edited" }
+        require(dueEpochMs == null || dueEpochMs >= debt.startEpochMs)
+        debt.copy(
+            title = title.trim(),
+            personName = personName.trim(),
+            dueEpochMs = dueEpochMs,
+            notes = notes?.trim()?.ifBlank { null },
+            updatedAtEpochMs = DateTimeUtils.nowEpochMs()
+        ).also { debtDao.updateDebt(it) }
+    }
+
+    /**
+     * Audited deletion: reverse every repayment and the original movement in one
+     * SQLite transaction, then retain the debt and repayment rows as archived history.
+     */
+    suspend fun archiveDebt(debtId: String) = ledgerEngine.withAtomicLedgerLock {
+        val debt = debtDao.getDebt(debtId) ?: throw IllegalArgumentException("Debt not found")
+        if (debt.status == DebtStatus.ARCHIVED) return@withAtomicLedgerLock
+        debtDao.getRepayments(debtId)
+            .sortedByDescending { it.paidAtEpochMs }
+            .forEach { repayment ->
+                reverseOrDeleteTransaction(
+                    transactionId = repayment.ledgerTransactionId,
+                    idempotencyKey = "debt_archive_repay_${repayment.id}",
+                    reason = "Debt archived: ${debt.title}"
+                )
+            }
+        reverseOrDeleteTransaction(
+            transactionId = debt.initialLedgerTransactionId,
+            idempotencyKey = "debt_archive_initial_${debt.id}",
+            reason = "Debt archived: ${debt.title}"
+        )
+        debtDao.updateDebt(
+            debt.copy(status = DebtStatus.ARCHIVED, updatedAtEpochMs = DateTimeUtils.nowEpochMs())
+        )
+    }
+
     suspend fun accruedInterestPaise(
         debtId: String,
         asOfDate: LocalDate = LocalDate.now()
