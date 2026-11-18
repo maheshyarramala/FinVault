@@ -159,20 +159,13 @@ class DebtRepository(
     suspend fun archiveDebt(debtId: String) = ledgerEngine.withAtomicLedgerLock {
         val debt = debtDao.getDebt(debtId) ?: throw IllegalArgumentException("Debt not found")
         if (debt.status == DebtStatus.ARCHIVED) return@withAtomicLedgerLock
-        debtDao.getRepayments(debtId)
-            .sortedByDescending { it.paidAtEpochMs }
-            .forEach { repayment ->
-                reverseOrDeleteTransaction(
-                    transactionId = repayment.ledgerTransactionId,
-                    idempotencyKey = "debt_archive_repay_${repayment.id}",
-                    reason = "Debt archived: ${debt.title}"
-                )
-            }
-        reverseOrDeleteTransaction(
-            transactionId = debt.initialLedgerTransactionId,
-            idempotencyKey = "debt_archive_initial_${debt.id}",
-            reason = "Debt archived: ${debt.title}"
-        )
+        database.ledgerDao().getActiveDebtTransactions(debtId).forEach { transaction ->
+            reverseOrDeleteTransaction(
+                transactionId = transaction.id,
+                idempotencyKey = "debt_archive_${debt.id}_${transaction.id}",
+                reason = "Debt archived: ${debt.title}"
+            )
+        }
         debtDao.updateDebt(
             debt.copy(status = DebtStatus.ARCHIVED, updatedAtEpochMs = DateTimeUtils.nowEpochMs())
         )
