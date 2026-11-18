@@ -153,6 +153,75 @@ class DebtRepositoryTest {
     }
 
     @Test
+    fun `editing latest repayment replaces ledger and restores correct outstanding balance`() = runTest {
+        val bank = engine.createAccount(
+            CreateAccountSpec(id = "debt_edit_bank", name = "Edit Bank", accountType = AccountType.BANK, openingBalancePaise = 100000L)
+        )
+        val debt = repository.createDebt(
+            title = "Edit test", personName = "Ravi", type = DebtType.LENT,
+            principalPaise = 30000L, accountId = bank.id, idempotencyKey = "edit-debt-create"
+        )
+        val repayment = repository.recordRepayment(
+            debtId = debt.id, principalPaise = 10000L, interestPaise = 0L,
+            paymentAccountId = bank.id, idempotencyKey = "edit-repay"
+        )
+        val edited = repository.editLatestRepayment(
+            repaymentId = repayment.id, principalPaise = 5000L, interestPaise = 0L, paymentAccountId = bank.id
+        )
+        assertEquals(5000L, edited.totalPaise)
+        assertEquals(25000L, repository.getDebt(debt.id)!!.outstandingPrincipalPaise)
+        assertEquals(75000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertTrue(database.ledgerDao().getTransactionById(repayment.ledgerTransactionId)!!.isVoided)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+    }
+
+    @Test
+    fun `deleting latest repayment reverses cash movement and restores principal`() = runTest {
+        val bank = engine.createAccount(
+            CreateAccountSpec(id = "debt_delete_bank", name = "Delete Bank", accountType = AccountType.BANK, openingBalancePaise = 100000L)
+        )
+        val debt = repository.createDebt(
+            title = "Delete test", personName = "Ravi", type = DebtType.LENT,
+            principalPaise = 30000L, accountId = bank.id, idempotencyKey = "delete-debt-create"
+        )
+        val repayment = repository.recordRepayment(
+            debtId = debt.id, principalPaise = 10000L, interestPaise = 0L,
+            paymentAccountId = bank.id, idempotencyKey = "delete-repay"
+        )
+        repository.deleteLatestRepayment(repayment.id)
+        assertEquals(30000L, repository.getDebt(debt.id)!!.outstandingPrincipalPaise)
+        assertEquals(70000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertTrue(database.debtDao().getRepaymentById(repayment.id) == null)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+    }
+
+    @Test
+    fun `editing earlier repayment is rejected and leaves ledger unchanged`() = runTest {
+        val bank = engine.createAccount(
+            CreateAccountSpec(id = "debt_order_bank", name = "Order Bank", accountType = AccountType.BANK, openingBalancePaise = 100000L)
+        )
+        val debt = repository.createDebt(
+            title = "Order test", personName = "Ravi", type = DebtType.LENT,
+            principalPaise = 30000L, accountId = bank.id, idempotencyKey = "order-debt-create"
+        )
+        val first = repository.recordRepayment(
+            debtId = debt.id, principalPaise = 5000L, interestPaise = 0L,
+            paymentAccountId = bank.id, paidAtEpochMs = 1_800_000_000_000L, idempotencyKey = "order-repay-1"
+        )
+        repository.recordRepayment(
+            debtId = debt.id, principalPaise = 5000L, interestPaise = 0L,
+            paymentAccountId = bank.id, paidAtEpochMs = 1_800_000_100_000L, idempotencyKey = "order-repay-2"
+        )
+        val before = database.accountDao().getAccountById(bank.id)!!.currentBalancePaise
+        val failure = runCatching {
+            repository.editLatestRepayment(first.id, 4000L, 0L, bank.id)
+        }.exceptionOrNull()
+        assertTrue(failure is IllegalStateException)
+        assertEquals(before, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+    }
+
+    @Test
     fun `debt creation with same idempotency key does not duplicate debt or ledger movement`() = runTest {
         val bank = engine.createAccount(
             CreateAccountSpec(
