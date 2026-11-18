@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.example.MainActivity
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -67,8 +68,15 @@ class DebtReminderScheduler(private val context: Context) {
                     NotificationChannel(CHANNEL_ID, "Debt due reminders", NotificationManager.IMPORTANCE_DEFAULT)
                 )
             }
+            val openAppIntent = PendingIntent.getActivity(
+                context,
+                debtId.hashCode(),
+                Intent(context, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentIntent(openAppIntent)
                 .setContentTitle("Debt due today")
                 .setContentText("$title • $person")
                 .setStyle(NotificationCompat.BigTextStyle().bigText("$title with $person is due today. Open FinVault to review the balance."))
