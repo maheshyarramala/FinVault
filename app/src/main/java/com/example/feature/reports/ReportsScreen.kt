@@ -190,6 +190,36 @@ fun ReportsScreen(
         }
 
         item {
+            FinVaultSectionHeader(
+                title = "Debt Position",
+                trailingText = if (uiState.overdueDebtCount == 0) "On track" else "${uiState.overdueDebtCount} overdue"
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            FinVaultCard(modifier = Modifier.testTag("reports_debt_breakdown_card")) {
+                FinVaultInfoRow(
+                    icon = Icons.Filled.AccountBalanceWallet,
+                    label = "Money owed to you",
+                    value = uiState.lentOutstanding.formatInr(),
+                    iconTint = semantic.income
+                )
+                HorizontalDivider(color = semantic.cardBorder, modifier = Modifier.padding(vertical = 8.dp))
+                FinVaultInfoRow(
+                    icon = Icons.Filled.Payments,
+                    label = "Money you owe",
+                    value = uiState.borrowedOutstanding.formatInr(),
+                    iconTint = semantic.expense
+                )
+                HorizontalDivider(color = semantic.cardBorder, modifier = Modifier.padding(vertical = 8.dp))
+                FinVaultInfoRow(
+                    icon = Icons.Filled.Analytics,
+                    label = "Overdue debts",
+                    value = uiState.overdueDebtCount.toString(),
+                    iconTint = if (uiState.overdueDebtCount > 0) semantic.warning else semantic.income
+                )
+            }
+        }
+
+        item {
             FinVaultEmptyStateCard(
                 icon = Icons.Filled.Analytics,
                 title = "Net Worth ${uiState.netWorth.formatInr()}",
