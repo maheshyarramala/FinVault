@@ -114,6 +114,9 @@ fun FinVaultNavHost(
                     },
                     onOpenSplitBill = {
                         openSplitBillHub()
+                    },
+                    onOpenDebtManagement = {
+                        navController.navigate(FinVaultRoute.DebtManagement) { launchSingleTop = true }
                     }
                 )
             }
