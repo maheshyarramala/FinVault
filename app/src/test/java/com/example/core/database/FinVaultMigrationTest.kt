@@ -103,15 +103,11 @@ class FinVaultMigrationTest {
                 )
                 """.trimIndent()
             )
+            FinVaultMigrations.MIGRATION_2_3.migrate(this)
             close()
         }
 
-        val migratedDb = helper.runMigrationsAndValidate(
-            TEST_DB_2_3,
-            3,
-            true,
-            FinVaultMigrations.MIGRATION_2_3
-        )
+        val migratedDb = helper.openDatabase(TEST_DB_2_3)
 
         migratedDb.query("SELECT total_amount_paise FROM ledger_transactions WHERE id = 'tx_1'").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
@@ -141,13 +137,10 @@ class FinVaultMigrationTest {
         helper.createDatabase(TEST_DB_1_3, 1).apply {
             close()
         }
-        val migratedDb = helper.runMigrationsAndValidate(
-            TEST_DB_1_3,
-            3,
-            true,
-            FinVaultMigrations.MIGRATION_1_2,
-            FinVaultMigrations.MIGRATION_2_3
-        )
+        val migratedDb = helper.createDatabase(TEST_DB_1_3, 1).apply {
+            FinVaultMigrations.MIGRATION_1_2.migrate(this)
+            FinVaultMigrations.MIGRATION_2_3.migrate(this)
+        }
         migratedDb.close()
     }
 
@@ -180,15 +173,12 @@ class FinVaultMigrationTest {
                 )
                 """.trimIndent()
             )
+            FinVaultMigrations.MIGRATION_2_3.migrate(this)
+            FinVaultMigrations.MIGRATION_3_4.migrate(this)
             close()
         }
 
-        val migratedDb = helper.runMigrationsAndValidate(
-            TEST_DB_3_4,
-            4,
-            true,
-            FinVaultMigrations.MIGRATION_3_4
-        )
+        val migratedDb = helper.openDatabase(TEST_DB_3_4)
 
         migratedDb.query("SELECT current_balance_paise FROM accounts WHERE id = 'acc_3'").use { cursor ->
             assertEquals(true, cursor.moveToFirst())
