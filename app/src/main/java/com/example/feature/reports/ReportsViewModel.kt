@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.core.common.DateTimeUtils
 import com.example.core.common.MoneyPaise
 import com.example.core.data.repository.AccountRepository
+import com.example.core.data.repository.DebtRepository
+import com.example.core.database.entity.DebtStatus
 import com.example.core.data.repository.LedgerRepository
 import com.example.core.data.repository.SplitBillPortfolioSummary
 import com.example.core.data.repository.SplitBillRepository
@@ -18,6 +20,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import java.util.Locale
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 enum class ReportPeriod {
     DAILY,
@@ -39,14 +44,18 @@ data class ReportsUiState(
     val userGroupExpenseShare: MoneyPaise = MoneyPaise.ZERO,
     val splitReimbursementsReceived: MoneyPaise = MoneyPaise.ZERO,
     val outstandingSplitReceivables: MoneyPaise = MoneyPaise.ZERO,
-    val splitPayables: MoneyPaise = MoneyPaise.ZERO
+    val splitPayables: MoneyPaise = MoneyPaise.ZERO,
+    val lentOutstanding: MoneyPaise = MoneyPaise.ZERO,
+    val borrowedOutstanding: MoneyPaise = MoneyPaise.ZERO,
+    val overdueDebtCount: Int = 0
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReportsViewModel(
     accountRepository: AccountRepository,
     private val ledgerRepository: LedgerRepository,
-    splitBillRepository: SplitBillRepository? = null
+    splitBillRepository: SplitBillRepository? = null,
+    debtRepository: DebtRepository? = null
 ) : ViewModel() {
 
     private val selectedPeriod = MutableStateFlow(ReportPeriod.MONTHLY)
@@ -97,8 +106,9 @@ class ReportsViewModel(
         periodCashFlowFlow,
         accountRepository.totalLiquidBalance,
         accountRepository.totalCreditCardOutstanding,
-        splitBillRepository?.portfolioSummary ?: flowOf(emptyPortfolio)
-    ) { metrics, liquidBalance, cardOutstanding, splitPortfolio ->
+        splitBillRepository?.portfolioSummary ?: flowOf(emptyPortfolio),
+        debtRepository?.debts ?: flowOf(emptyList())
+    ) { metrics, liquidBalance, cardOutstanding, splitPortfolio, debts ->
         val netWorth = liquidBalance - cardOutstanding
         val cashFlow = metrics.income - metrics.totalExpenses
         val savingsRate = if (metrics.income.isPositive) {
@@ -123,7 +133,14 @@ class ReportsViewModel(
             userGroupExpenseShare = splitPortfolio.userPersonalShareTotal,
             splitReimbursementsReceived = splitPortfolio.reimbursementsReceivedTotal,
             outstandingSplitReceivables = splitPortfolio.youAreOwed,
-            splitPayables = splitPortfolio.youOwe
+            splitPayables = splitPortfolio.youOwe,
+            lentOutstanding = MoneyPaise(debts.filter { it.status == DebtStatus.ACTIVE && it.type.name == "LENT" }.sumOf { it.outstandingPrincipalPaise }),
+            borrowedOutstanding = MoneyPaise(debts.filter { it.status == DebtStatus.ACTIVE && it.type.name == "BORROWED" }.sumOf { it.outstandingPrincipalPaise }),
+            overdueDebtCount = debts.count { debt ->
+                debt.status == DebtStatus.ACTIVE && debt.dueEpochMs?.let { due ->
+                    Instant.ofEpochMilli(due).atZone(ZoneId.systemDefault()).toLocalDate().isBefore(LocalDate.now())
+                } == true
+            }
         )
     }.stateIn(
         scope = viewModelScope,
@@ -139,12 +156,13 @@ class ReportsViewModel(
         fun factory(
             accountRepository: AccountRepository,
             ledgerRepository: LedgerRepository,
-            splitBillRepository: SplitBillRepository? = null
+            splitBillRepository: SplitBillRepository? = null,
+            debtRepository: DebtRepository? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return ReportsViewModel(accountRepository, ledgerRepository, splitBillRepository) as T
+                    return ReportsViewModel(accountRepository, ledgerRepository, splitBillRepository, debtRepository) as T
                 }
             }
     }
