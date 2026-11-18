@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.common.MoneyPaise
 import com.example.core.database.entity.DebtType
 import com.example.core.database.entity.DebtInterestType
+import com.example.core.database.entity.AccountType
 
 @Composable
 fun DebtManagementScreen(
@@ -143,7 +144,7 @@ fun DebtManagementScreen(
                     }
                     Text("Account used for the original money movement", style = MaterialTheme.typography.labelMedium)
                     AccountChoices(
-                        accounts = state.accounts.map { it.id to it.name },
+                        accounts = state.accounts.filter { it.accountType != AccountType.CREDIT_CARD }.map { it.id to it.name },
                         selectedId = selectedAccountId,
                         onSelect = { selectedAccountId = it }
                     )
