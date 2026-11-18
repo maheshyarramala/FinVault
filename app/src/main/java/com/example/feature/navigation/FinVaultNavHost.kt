@@ -20,6 +20,8 @@ import com.example.core.di.AppContainer
 import com.example.feature.finance.FinanceScreen
 import com.example.feature.finance.FinanceSectionTab
 import com.example.feature.finance.FinanceViewModel
+import com.example.feature.debt.DebtManagementScreen
+import com.example.feature.debt.DebtManagementViewModel
 import com.example.feature.finance.TransactionFormKind
 import com.example.feature.home.HomeScreen
 import com.example.feature.home.HomeViewModel
@@ -49,6 +51,7 @@ fun FinVaultNavHost(
     val selectedNavItem = BottomNavItem.entries.firstOrNull { item ->
         currentDestination?.hasRoute(item.route::class) == true
     } ?: if (
+        currentDestination?.hasRoute(FinVaultRoute.DebtManagement::class) == true ||
         currentDestination?.hasRoute(FinVaultRoute.SplitBillHub::class) == true ||
         currentDestination?.hasRoute(FinVaultRoute.SplitBillGroupDetail::class) == true
     ) {
@@ -161,6 +164,18 @@ fun FinVaultNavHost(
                     )
                 )
                 SettingsScreen(viewModel = settingsViewModel)
+            }
+            composable<FinVaultRoute.DebtManagement> {
+                val debtViewModel: DebtManagementViewModel = viewModel(
+                    factory = DebtManagementViewModel.factory(
+                        debtRepository = appContainer.debtRepository,
+                        accountRepository = appContainer.accountRepository
+                    )
+                )
+                DebtManagementScreen(
+                    viewModel = debtViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
             composable<FinVaultRoute.SplitBillHub> {
                 val splitBillHubViewModel: SplitBillHubViewModel = viewModel(
