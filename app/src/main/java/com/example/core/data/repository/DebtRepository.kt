@@ -136,15 +136,23 @@ class DebtRepository(
             result.transactionId
         } else debt.initialLedgerTransactionId
         val revisedOutstanding = revisedPrincipal - repaidPrincipal
+        // If principal is fully cleared by an edit, crystallize accrued interest so
+        // the debt cannot be marked settled while interest is still due.
+        val revisedInterestOutstanding = if (revisedOutstanding == 0L) {
+            accruedInterestPaise(debtId)
+        } else {
+            debt.interestOutstandingPaise
+        }
         debt.copy(
             title = title.trim(),
             personName = personName.trim(),
             principalPaise = revisedPrincipal,
             outstandingPrincipalPaise = revisedOutstanding,
+            interestOutstandingPaise = revisedInterestOutstanding,
             initialLedgerTransactionId = revisedInitialTransactionId,
             dueEpochMs = dueEpochMs,
             notes = notes?.trim()?.ifBlank { null },
-            status = if (revisedOutstanding == 0L && debt.interestOutstandingPaise == 0L) DebtStatus.SETTLED else DebtStatus.ACTIVE,
+            status = if (revisedOutstanding == 0L && revisedInterestOutstanding == 0L) DebtStatus.SETTLED else DebtStatus.ACTIVE,
             updatedAtEpochMs = DateTimeUtils.nowEpochMs()
         ).also {
             debtDao.updateDebt(it)
