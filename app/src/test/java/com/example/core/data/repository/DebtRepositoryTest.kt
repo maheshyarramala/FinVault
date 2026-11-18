@@ -98,8 +98,8 @@ class DebtRepositoryTest {
             type = DebtType.BORROWED,
             principalPaise = 20000L,
             accountId = bank.id,
-            interestType = DebtInterestType.SIMPLE,
-            annualInterestRateBps = 1200,
+            interestType = DebtInterestType.FIXED,
+            fixedInterestPaise = 2400L,
             startEpochMs = System.currentTimeMillis() - 365L * 24L * 60L * 60L * 1000L,
             idempotencyKey = "family-borrow-001"
         )
