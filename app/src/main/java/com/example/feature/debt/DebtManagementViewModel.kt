@@ -7,6 +7,7 @@ import com.example.core.data.repository.AccountRepository
 import com.example.core.data.repository.DebtRepository
 import com.example.core.database.entity.AccountEntity
 import com.example.core.database.entity.DebtRecordEntity
+import com.example.core.database.entity.DebtInterestType
 import com.example.core.database.entity.DebtType
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -49,16 +50,26 @@ class DebtManagementViewModel(
         person: String,
         amount: String,
         type: DebtType,
-        accountId: String
+        accountId: String,
+        interestType: DebtInterestType = DebtInterestType.NONE,
+        annualRatePercent: String = "0",
+        fixedInterest: String = "0"
     ) {
         viewModelScope.launch {
             runCatching {
+                val rateBps = BigDecimal(annualRatePercent.ifBlank { "0" })
+                    .multiply(BigDecimal("100"))
+                    .setScale(0, RoundingMode.UNNECESSARY)
+                    .intValueExact()
                 debtRepository.createDebt(
                     title = title,
                     personName = person,
                     type = type,
                     principalPaise = amount.toPaise(),
-                    accountId = accountId
+                    accountId = accountId,
+                    interestType = interestType,
+                    annualInterestRateBps = rateBps,
+                    fixedInterestPaise = fixedInterest.ifBlank { "0" }.toPaise()
                 )
             }.onSuccess {
                 _uiState.update { it.copy(message = "Debt saved", error = null) }
