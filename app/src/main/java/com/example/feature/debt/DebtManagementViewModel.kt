@@ -11,6 +11,8 @@ import com.example.core.database.entity.DebtInterestType
 import com.example.core.database.entity.DebtType
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,7 +55,8 @@ class DebtManagementViewModel(
         accountId: String,
         interestType: DebtInterestType = DebtInterestType.NONE,
         annualRatePercent: String = "0",
-        fixedInterest: String = "0"
+        fixedInterest: String = "0",
+        dueDate: String = ""
     ) {
         viewModelScope.launch {
             runCatching {
@@ -69,7 +72,10 @@ class DebtManagementViewModel(
                     accountId = accountId,
                     interestType = interestType,
                     annualInterestRateBps = rateBps,
-                    fixedInterestPaise = fixedInterest.ifBlank { "0" }.toPaise()
+                    fixedInterestPaise = fixedInterest.ifBlank { "0" }.toPaise(),
+                    dueEpochMs = dueDate.trim().takeIf { it.isNotEmpty() }?.let { date ->
+                        LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    }
                 )
             }.onSuccess {
                 _uiState.update { it.copy(message = "Debt saved", error = null) }
