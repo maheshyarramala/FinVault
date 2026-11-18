@@ -125,6 +125,48 @@ class DebtRepositoryTest {
     }
 
     @Test
+    fun `fixed interest is not charged again after a partial repayment`() = runTest {
+        val bank = engine.createAccount(
+            CreateAccountSpec(
+                id = "debt_fixed_partial_bank",
+                name = "Fixed Interest Bank",
+                accountType = AccountType.BANK,
+                openingBalancePaise = 50000L
+            )
+        )
+        val debt = repository.createDebt(
+            title = "One-time fixed charge",
+            personName = "Family",
+            type = DebtType.BORROWED,
+            principalPaise = 10000L,
+            accountId = bank.id,
+            interestType = DebtInterestType.FIXED,
+            fixedInterestPaise = 2400L,
+            idempotencyKey = "fixed-partial-create"
+        )
+
+        repository.recordRepayment(
+            debtId = debt.id,
+            principalPaise = 2000L,
+            interestPaise = 1000L,
+            paymentAccountId = bank.id,
+            idempotencyKey = "fixed-partial-first-payment"
+        )
+
+        assertEquals(1400L, repository.accruedInterestPaise(debt.id))
+        repository.recordRepayment(
+            debtId = debt.id,
+            principalPaise = 8000L,
+            interestPaise = 1400L,
+            paymentAccountId = bank.id,
+            idempotencyKey = "fixed-partial-final-payment"
+        )
+        assertEquals("SETTLED", repository.getDebt(debt.id)!!.status.name)
+        assertEquals(37600L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+    }
+
+    @Test
     fun `archive reverses all debt movements but retains archived audit record`() = runTest {
         val bank = engine.createAccount(
             CreateAccountSpec(
