@@ -112,6 +112,16 @@ class DebtManagementViewModel(
         }
     }
 
+    fun archiveDebt(debtId: String) {
+        viewModelScope.launch {
+            runCatching { debtRepository.archiveDebt(debtId) }
+                .onSuccess { _uiState.update { it.copy(message = "Debt archived and ledger movements reversed", error = null) } }
+                .onFailure { error ->
+                    _uiState.update { it.copy(error = error.message ?: "Unable to archive debt", message = null) }
+                }
+        }
+    }
+
     fun clearMessages() {
         _uiState.update { it.copy(message = null, error = null) }
     }
