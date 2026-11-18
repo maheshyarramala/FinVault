@@ -108,18 +108,43 @@ class DebtRepository(
         title: String,
         personName: String,
         dueEpochMs: Long?,
-        notes: String?
+        notes: String?,
+        principalPaise: Long? = null
     ): DebtRecordEntity = ledgerEngine.withAtomicLedgerLock {
         require(title.isNotBlank()) { "Debt title cannot be blank" }
         require(personName.isNotBlank()) { "Person name cannot be blank" }
         val debt = debtDao.getDebt(debtId) ?: throw IllegalArgumentException("Debt not found")
         check(debt.status != DebtStatus.ARCHIVED) { "Archived debts cannot be edited" }
         require(dueEpochMs == null || dueEpochMs >= debt.startEpochMs)
+        val revisedPrincipal = principalPaise ?: debt.principalPaise
+        require(revisedPrincipal > 0L) { "Principal must be greater than zero" }
+        val repaidPrincipal = debtDao.getRepayments(debtId).sumOf { it.principalPaise }
+        require(revisedPrincipal >= repaidPrincipal) { "Principal cannot be lower than principal already repaid" }
+        val revisedInitialTransactionId = if (revisedPrincipal != debt.principalPaise) {
+            val result = editTransaction(
+                debt.initialLedgerTransactionId,
+                LedgerPostSpec.DebtMovement(
+                    accountId = debt.accountId,
+                    amountPaise = revisedPrincipal,
+                    kind = if (debt.type == DebtType.LENT) DebtLedgerKind.LENT_OUT else DebtLedgerKind.BORROWED_IN,
+                    description = if (debt.type == DebtType.LENT) "Money lent: ${title.trim()}" else "Money borrowed: ${title.trim()}",
+                    timestampEpochMs = debt.startEpochMs,
+                    idempotencyKey = "debt_initial_edit_${debt.id}_${UUID.randomUUID()}",
+                    sourceRecordId = debt.id
+                )
+            )
+            result.transactionId
+        } else debt.initialLedgerTransactionId
+        val revisedOutstanding = revisedPrincipal - repaidPrincipal
         debt.copy(
             title = title.trim(),
             personName = personName.trim(),
+            principalPaise = revisedPrincipal,
+            outstandingPrincipalPaise = revisedOutstanding,
+            initialLedgerTransactionId = revisedInitialTransactionId,
             dueEpochMs = dueEpochMs,
             notes = notes?.trim()?.ifBlank { null },
+            status = if (revisedOutstanding == 0L && debt.interestOutstandingPaise == 0L) DebtStatus.SETTLED else DebtStatus.ACTIVE,
             updatedAtEpochMs = DateTimeUtils.nowEpochMs()
         ).also {
             debtDao.updateDebt(it)
