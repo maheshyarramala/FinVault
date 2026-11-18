@@ -6,6 +6,7 @@ import com.example.core.data.repository.AccountRepository
 import com.example.core.data.repository.BudgetRepository
 import com.example.core.data.repository.CategoryRepository
 import com.example.core.data.repository.CreditCardRepository
+import com.example.core.data.repository.DebtRepository
 import com.example.core.data.repository.LedgerRepository
 import com.example.core.data.repository.RecurringRuleRepository
 import com.example.core.data.repository.SplitBillRepository
@@ -47,6 +48,10 @@ class AppContainer(context: Context) {
     val recurringRuleRepository: RecurringRuleRepository = RecurringRuleRepository(
         recurringRuleDao = database.recurringRuleDao(),
         accountDao = database.accountDao(),
+        ledgerEngine = centralLedgerEngine
+    )
+    val debtRepository: DebtRepository = DebtRepository(
+        database = database,
         ledgerEngine = centralLedgerEngine
     )
     val splitBillRepository: SplitBillRepository = SplitBillRepository(
