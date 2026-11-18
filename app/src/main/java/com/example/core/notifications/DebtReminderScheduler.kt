@@ -31,7 +31,8 @@ class DebtReminderScheduler(private val context: Context) {
         if (dueEpochMs == null) return
         val dueDate = Instant.ofEpochMilli(dueEpochMs).atZone(ZoneId.systemDefault()).toLocalDate()
         val triggerAt = dueDate.atTime(9, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        if (triggerAt <= System.currentTimeMillis()) return
+        if (dueDate.isBefore(LocalDate.now())) return
+        val scheduledAt = if (triggerAt <= System.currentTimeMillis()) System.currentTimeMillis() + 60_000L else triggerAt
         val intent = Intent(context, DebtReminderReceiver::class.java).apply {
             putExtra(EXTRA_DEBT_ID, debtId)
             putExtra(EXTRA_TITLE, title)
@@ -42,7 +43,7 @@ class DebtReminderScheduler(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
+        alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, scheduledAt, pending)
     }
 
     fun cancel(debtId: String) {
