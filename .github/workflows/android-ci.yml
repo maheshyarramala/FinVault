@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/phase-6-debt-management
   pull_request:
     branches:
       - main
@@ -52,3 +51,13 @@ jobs:
 
       - name: Assemble debug APK
         run: gradle assembleDebug
+
+      - name: Upload debug APK and Room schemas
+        uses: actions/upload-artifact@v4
+        with:
+          name: finvault-debug-apk-and-room-schemas
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/schemas/
+          if-no-files-found: error
+          retention-days: 14
