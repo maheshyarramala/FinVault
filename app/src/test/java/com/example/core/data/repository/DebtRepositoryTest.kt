@@ -20,6 +20,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.LocalDate
+import java.time.ZoneId
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -163,6 +165,42 @@ class DebtRepositoryTest {
         )
         assertEquals("SETTLED", repository.getDebt(debt.id)!!.status.name)
         assertEquals(47600L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+    }
+
+    @Test
+    fun `deleting latest repayment does not double count previously accrued interest`() = runTest {
+        val bank = engine.createAccount(
+            CreateAccountSpec(
+                id = "debt_interest_delete_bank",
+                name = "Interest Delete Bank",
+                accountType = AccountType.BANK,
+                openingBalancePaise = 100000L
+            )
+        )
+        fun epoch(date: LocalDate) = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val debt = repository.createDebt(
+            title = "Interest checkpoint",
+            personName = "Ravi",
+            type = DebtType.LENT,
+            principalPaise = 10000L,
+            accountId = bank.id,
+            interestType = DebtInterestType.SIMPLE,
+            annualInterestRateBps = 36500,
+            startEpochMs = epoch(LocalDate.of(2025, 1, 1)),
+            idempotencyKey = "interest-checkpoint-create"
+        )
+        val repayment = repository.recordRepayment(
+            debtId = debt.id,
+            principalPaise = 2000L,
+            interestPaise = 1000L,
+            paymentAccountId = bank.id,
+            paidAtEpochMs = epoch(LocalDate.of(2025, 1, 11)),
+            idempotencyKey = "interest-checkpoint-payment"
+        )
+        repository.deleteLatestRepayment(repayment.id)
+
+        assertEquals(2000L, repository.accruedInterestPaise(debt.id, LocalDate.of(2025, 1, 21)))
         assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
     }
 
