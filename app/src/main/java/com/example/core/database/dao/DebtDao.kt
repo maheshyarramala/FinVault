@@ -26,10 +26,18 @@ interface DebtDao {
     @Update
     suspend fun updateDebt(debt: DebtRecordEntity)
 
-    @Query("SELECT * FROM debt_repayments WHERE debt_id = :debtId ORDER BY paid_at_epoch_ms DESC")
+    @Query(
+        "SELECT dr.* FROM debt_repayments dr INNER JOIN ledger_transactions lt " +
+            "ON dr.ledger_transaction_id = lt.id WHERE dr.debt_id = :debtId " +
+            "AND lt.is_voided = 0 ORDER BY dr.paid_at_epoch_ms DESC"
+    )
     fun observeRepayments(debtId: String): Flow<List<DebtRepaymentEntity>>
 
-    @Query("SELECT * FROM debt_repayments WHERE debt_id = :debtId ORDER BY paid_at_epoch_ms DESC")
+    @Query(
+        "SELECT dr.* FROM debt_repayments dr INNER JOIN ledger_transactions lt " +
+            "ON dr.ledger_transaction_id = lt.id WHERE dr.debt_id = :debtId " +
+            "AND lt.is_voided = 0 ORDER BY dr.paid_at_epoch_ms DESC"
+    )
     suspend fun getRepayments(debtId: String): List<DebtRepaymentEntity>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
@@ -40,9 +48,6 @@ interface DebtDao {
 
     @Query("SELECT * FROM debt_repayments WHERE id = :repaymentId LIMIT 1")
     suspend fun getRepaymentById(repaymentId: String): DebtRepaymentEntity?
-
-    @androidx.room.Delete
-    suspend fun deleteRepayment(repayment: DebtRepaymentEntity)
 
     @Query("SELECT * FROM debt_repayments WHERE idempotency_key = :key LIMIT 1")
     suspend fun getRepaymentByIdempotencyKey(key: String): DebtRepaymentEntity?
