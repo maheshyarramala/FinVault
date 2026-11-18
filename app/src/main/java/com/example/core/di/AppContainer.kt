@@ -12,6 +12,7 @@ import com.example.core.data.repository.RecurringRuleRepository
 import com.example.core.data.repository.SplitBillRepository
 import com.example.core.database.FinVaultDatabase
 import com.example.core.domain.ledger.CentralLedgerEngine
+import com.example.core.notifications.DebtReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,9 +51,11 @@ class AppContainer(context: Context) {
         accountDao = database.accountDao(),
         ledgerEngine = centralLedgerEngine
     )
+    val debtReminderScheduler = DebtReminderScheduler(context.applicationContext)
     val debtRepository: DebtRepository = DebtRepository(
         database = database,
-        ledgerEngine = centralLedgerEngine
+        ledgerEngine = centralLedgerEngine,
+        reminderScheduler = debtReminderScheduler
     )
     val splitBillRepository: SplitBillRepository = SplitBillRepository(
         database = database,
