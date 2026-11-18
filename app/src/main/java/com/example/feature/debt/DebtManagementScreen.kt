@@ -397,7 +397,7 @@ fun DebtManagementScreen(
                                 TextButton(onClick = {
                                     viewModel.editLatestRepayment(
                                         repayment.id, editRepaymentPrincipal, editRepaymentInterest,
-                                        repayment.paymentAccountId, repayment.paidAtEpochMs
+                                        repayment.paymentAccountId
                                     )
                                     editingRepayment = null
                                 }) { Text("Save") }
