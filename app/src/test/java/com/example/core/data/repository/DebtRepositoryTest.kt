@@ -225,6 +225,35 @@ class DebtRepositoryTest {
     }
 
     @Test
+    fun `archive after principal and repayment edits reverses entire audit chain`() = runTest {
+        val bank = engine.createAccount(
+            CreateAccountSpec(id = "debt_archive_edit_bank", name = "Archive Edit Bank", accountType = AccountType.BANK, openingBalancePaise = 100000L)
+        )
+        val debt = repository.createDebt(
+            title = "Archive edited debt", personName = "Ravi", type = DebtType.LENT,
+            principalPaise = 30000L, accountId = bank.id, idempotencyKey = "archive-edit-create"
+        )
+        val repayment = repository.recordRepayment(
+            debtId = debt.id, principalPaise = 10000L, interestPaise = 0L,
+            paymentAccountId = bank.id, idempotencyKey = "archive-edit-repay"
+        )
+        repository.updateDebtDetails(
+            debtId = debt.id, title = "Edited debt", personName = "Ravi",
+            dueEpochMs = null, notes = null, principalPaise = 40000L
+        )
+        repository.editLatestRepayment(
+            repaymentId = repayment.id, principalPaise = 5000L, interestPaise = 0L, paymentAccountId = bank.id
+        )
+        assertEquals(65000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+
+        repository.archiveDebt(debt.id)
+
+        assertEquals(100000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertEquals("ARCHIVED", repository.getDebt(debt.id)!!.status.name)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+    }
+
+    @Test
     fun `editing debt principal replaces initial ledger movement and preserves repayments`() = runTest {
         val bank = engine.createAccount(
             CreateAccountSpec(id = "debt_principal_edit_bank", name = "Principal Edit Bank", accountType = AccountType.BANK, openingBalancePaise = 100000L)
