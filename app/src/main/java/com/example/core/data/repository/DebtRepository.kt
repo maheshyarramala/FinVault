@@ -154,6 +154,78 @@ class DebtRepository(
         reminderScheduler?.cancel(debt.id)
     }
 
+    suspend fun editLatestRepayment(
+        repaymentId: String,
+        principalPaise: Long,
+        interestPaise: Long,
+        paymentAccountId: String
+    ): DebtRepaymentEntity = ledgerEngine.withAtomicLedgerLock {
+        require(principalPaise >= 0L && interestPaise >= 0L)
+        val totalPaise = Math.addExact(principalPaise, interestPaise)
+        require(totalPaise > 0L) { "Repayment must be greater than zero" }
+        val old = debtDao.getRepaymentById(repaymentId) ?: throw IllegalArgumentException("Repayment not found")
+        val debt = debtDao.getDebt(old.debtId) ?: throw IllegalArgumentException("Debt not found")
+        check(debt.status != DebtStatus.ARCHIVED) { "Archived debts cannot be edited" }
+        val latest = debtDao.getRepayments(debt.id).maxByOrNull { it.paidAtEpochMs }
+        check(latest?.id == old.id) { "Only the latest repayment can be edited; edit later repayments first" }
+
+        val restoredPrincipal = Math.addExact(debt.outstandingPrincipalPaise, old.principalPaise)
+        val restoredInterest = Math.addExact(debt.interestOutstandingPaise, old.interestPaise)
+        require(principalPaise <= restoredPrincipal) { "Principal repayment exceeds outstanding principal" }
+        require(interestPaise <= restoredInterest) { "Interest repayment exceeds accrued interest" }
+        val spec = LedgerPostSpec.DebtMovement(
+            accountId = paymentAccountId,
+            amountPaise = totalPaise,
+            kind = if (debt.type == DebtType.LENT) DebtLedgerKind.REPAYMENT_RECEIVED else DebtLedgerKind.REPAYMENT_PAID,
+            principalPaise = principalPaise,
+            interestPaise = interestPaise,
+            description = if (debt.type == DebtType.LENT) "Repayment received: ${debt.title}" else "Debt repayment: ${debt.title}",
+            timestampEpochMs = old.paidAtEpochMs,
+            idempotencyKey = "debt_repayment_edit_${old.id}_${UUID.randomUUID()}",
+            sourceRecordId = debt.id
+        )
+        val result = editTransaction(old.ledgerTransactionId, spec)
+        val updated = old.copy(
+            paymentAccountId = paymentAccountId,
+            principalPaise = principalPaise,
+            interestPaise = interestPaise,
+            totalPaise = totalPaise,
+            ledgerTransactionId = result.transactionId,
+            idempotencyKey = spec.idempotencyKey
+        )
+        debtDao.updateRepayment(updated)
+        val remainingPrincipal = restoredPrincipal - principalPaise
+        val remainingInterest = restoredInterest - interestPaise
+        debtDao.updateDebt(debt.copy(
+            outstandingPrincipalPaise = remainingPrincipal,
+            interestOutstandingPaise = remainingInterest,
+            status = if (remainingPrincipal == 0L && remainingInterest == 0L) DebtStatus.SETTLED else DebtStatus.ACTIVE,
+            updatedAtEpochMs = DateTimeUtils.nowEpochMs()
+        ))
+        if (remainingPrincipal == 0L && remainingInterest == 0L) reminderScheduler?.cancel(debt.id)
+        updated
+    }
+
+    suspend fun deleteLatestRepayment(repaymentId: String) = ledgerEngine.withAtomicLedgerLock {
+        val old = debtDao.getRepaymentById(repaymentId) ?: throw IllegalArgumentException("Repayment not found")
+        val debt = debtDao.getDebt(old.debtId) ?: throw IllegalArgumentException("Debt not found")
+        check(debt.status != DebtStatus.ARCHIVED) { "Archived debts cannot be edited" }
+        val latest = debtDao.getRepayments(debt.id).maxByOrNull { it.paidAtEpochMs }
+        check(latest?.id == old.id) { "Only the latest repayment can be deleted; delete later repayments first" }
+        reverseOrDeleteTransaction(
+            transactionId = old.ledgerTransactionId,
+            idempotencyKey = "debt_repayment_delete_${old.id}",
+            reason = "Debt repayment deleted: ${debt.title}"
+        )
+        debtDao.deleteRepayment(old)
+        debtDao.updateDebt(debt.copy(
+            outstandingPrincipalPaise = Math.addExact(debt.outstandingPrincipalPaise, old.principalPaise),
+            interestOutstandingPaise = Math.addExact(debt.interestOutstandingPaise, old.interestPaise),
+            status = DebtStatus.ACTIVE,
+            updatedAtEpochMs = DateTimeUtils.nowEpochMs()
+        ))
+    }
+
     suspend fun accruedInterestPaise(
         debtId: String,
         asOfDate: LocalDate = LocalDate.now()
