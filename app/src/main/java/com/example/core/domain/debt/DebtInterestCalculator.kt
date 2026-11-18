@@ -79,9 +79,9 @@ object DebtInterestCalculator {
         periodsPerYear: Int
     ): Long {
         if (principal == 0L || rateBps == 0 || days == 0L) return 0L
-        val periodDays = 365L / periodsPerYear
-        val completedPeriods = days / periodDays
-        val remainingDays = days % periodDays
+        val periodProgress = Math.multiplyExact(days, periodsPerYear.toLong())
+        val completedPeriods = periodProgress / 365L
+        val remainingPeriodDaysNumerator = periodProgress % 365L
         val periodRate = BigDecimal.valueOf(rateBps.toLong())
             .divide(BigDecimal.valueOf(10_000L * periodsPerYear), 16, RoundingMode.HALF_UP)
         var balance = BigDecimal.valueOf(principal)
@@ -98,10 +98,10 @@ object DebtInterestCalculator {
             }
             balance = balance.multiply(power)
         }
-        if (remainingDays > 0L) {
-            val residualRate = BigDecimal.valueOf(rateBps.toLong())
-                .multiply(BigDecimal.valueOf(remainingDays))
-                .divide(BigDecimal.valueOf(10_000L * 365L), 16, RoundingMode.HALF_UP)
+        if (remainingPeriodDaysNumerator > 0L) {
+            val residualRate = periodRate
+                .multiply(BigDecimal.valueOf(remainingPeriodDaysNumerator))
+                .divide(BigDecimal.valueOf(365L), 16, RoundingMode.HALF_UP)
             balance = balance.multiply(BigDecimal.ONE.add(residualRate))
         }
         val total = balance.setScale(0, RoundingMode.HALF_UP).longValueExact()
