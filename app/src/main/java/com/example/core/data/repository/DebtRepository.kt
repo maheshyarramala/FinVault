@@ -1,6 +1,5 @@
 package com.example.core.data.repository
 
-import androidx.room.withTransaction
 import com.example.core.common.DateTimeUtils
 import com.example.core.database.FinVaultDatabase
 import com.example.core.database.entity.DebtCompoundingFrequency
@@ -61,7 +60,7 @@ class DebtRepository(
         require(fixedInterestPaise >= 0L)
         require(dueEpochMs == null || dueEpochMs >= startEpochMs)
 
-        val id = UUID.randomUUID().toString()
+        val id = UUID.nameUUIDFromBytes("finvault-debt:$idempotencyKey".toByteArray()).toString()
         return ledgerEngine.withAtomicLedgerLock {
             val existing = debtDao.getDebt(id)
             if (existing != null) return@withAtomicLedgerLock existing
@@ -120,7 +119,9 @@ class DebtRepository(
                 DebtCompoundingFrequency.YEARLY -> DebtInterestCalculator.CompoundingFrequency.YEARLY
             }
         )
-        val startDate = Instant.ofEpochMilli(debt.startEpochMs)
+        val lastRepayment = debtDao.getRepayments(debtId).maxByOrNull { it.paidAtEpochMs }
+        val accrualStartEpochMs = lastRepayment?.paidAtEpochMs ?: debt.startEpochMs
+        val startDate = Instant.ofEpochMilli(accrualStartEpochMs)
             .atZone(ZoneId.systemDefault()).toLocalDate()
         return DebtInterestCalculator.calculate(
             principalPaise = debt.outstandingPrincipalPaise,
