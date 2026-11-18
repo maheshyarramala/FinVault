@@ -405,5 +405,65 @@ object FinVaultMigrations {
         }
     }
 
-    val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+    val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `debt_records` (
+                    `id` TEXT NOT NULL,
+                    `title` TEXT NOT NULL,
+                    `person_name` TEXT NOT NULL,
+                    `type` TEXT NOT NULL,
+                    `principal_paise` INTEGER NOT NULL,
+                    `outstanding_principal_paise` INTEGER NOT NULL,
+                    `annual_interest_rate_bps` INTEGER NOT NULL,
+                    `interest_type` TEXT NOT NULL,
+                    `fixed_interest_paise` INTEGER NOT NULL,
+                    `compounding_frequency` TEXT NOT NULL,
+                    `start_epoch_ms` INTEGER NOT NULL,
+                    `due_epoch_ms` INTEGER,
+                    `account_id` TEXT NOT NULL,
+                    `initial_ledger_transaction_id` TEXT NOT NULL,
+                    `status` TEXT NOT NULL,
+                    `notes` TEXT,
+                    `created_at_epoch_ms` INTEGER NOT NULL,
+                    `updated_at_epoch_ms` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`),
+                    FOREIGN KEY(`account_id`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_debt_records_account_id` ON `debt_records` (`account_id`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_debt_records_status` ON `debt_records` (`status`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_debt_records_type` ON `debt_records` (`type`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_debt_records_created_at_epoch_ms` ON `debt_records` (`created_at_epoch_ms`)")
+
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `debt_repayments` (
+                    `id` TEXT NOT NULL,
+                    `debt_id` TEXT NOT NULL,
+                    `payment_account_id` TEXT NOT NULL,
+                    `principal_paise` INTEGER NOT NULL,
+                    `interest_paise` INTEGER NOT NULL,
+                    `total_paise` INTEGER NOT NULL,
+                    `ledger_transaction_id` TEXT NOT NULL,
+                    `idempotency_key` TEXT NOT NULL,
+                    `paid_at_epoch_ms` INTEGER NOT NULL,
+                    `created_at_epoch_ms` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`),
+                    FOREIGN KEY(`debt_id`) REFERENCES `debt_records`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                    FOREIGN KEY(`payment_account_id`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_debt_repayments_debt_id` ON `debt_repayments` (`debt_id`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_debt_repayments_payment_account_id` ON `debt_repayments` (`payment_account_id`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_debt_repayments_paid_at_epoch_ms` ON `debt_repayments` (`paid_at_epoch_ms`)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_debt_repayments_idempotency_key` ON `debt_repayments` (`idempotency_key`)")
+        }
+    }
+
+    val ALL_MIGRATIONS: Array<Migration> =
+        arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 }
