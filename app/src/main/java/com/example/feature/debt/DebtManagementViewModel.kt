@@ -12,6 +12,7 @@ import com.example.core.database.entity.DebtType
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,7 +75,7 @@ class DebtManagementViewModel(
                     annualInterestRateBps = rateBps,
                     fixedInterestPaise = fixedInterest.ifBlank { "0" }.toPaise(),
                     dueEpochMs = dueDate.trim().takeIf { it.isNotEmpty() }?.let { date ->
-                        LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        LocalDate.parse(date).atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                     }
                 )
             }.onSuccess {
