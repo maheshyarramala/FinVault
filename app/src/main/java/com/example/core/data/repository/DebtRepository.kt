@@ -123,12 +123,13 @@ class DebtRepository(
         val accrualStartEpochMs = lastRepayment?.paidAtEpochMs ?: debt.startEpochMs
         val startDate = Instant.ofEpochMilli(accrualStartEpochMs)
             .atZone(ZoneId.systemDefault()).toLocalDate()
-        return DebtInterestCalculator.calculate(
+        val currentPeriodInterest = DebtInterestCalculator.calculate(
             principalPaise = debt.outstandingPrincipalPaise,
             terms = terms,
             startDate = startDate,
             asOfDate = asOfDate
         ).interestPaise
+        return Math.addExact(debt.interestOutstandingPaise, currentPeriodInterest)
     }
 
     suspend fun recordRepayment(
@@ -152,6 +153,12 @@ class DebtRepository(
             check(debt.status == DebtStatus.ACTIVE) { "Only active debts can be repaid" }
             require(principalPaise <= debt.outstandingPrincipalPaise) {
                 "Principal repayment exceeds outstanding principal"
+            }
+            val repaymentDate = Instant.ofEpochMilli(paidAtEpochMs)
+                .atZone(ZoneId.systemDefault()).toLocalDate()
+            val interestDue = accruedInterestPaise(debtId, repaymentDate)
+            require(interestPaise <= interestDue) {
+                "Interest repayment exceeds accrued interest (${interestDue} paise)"
             }
             val ledgerResult = post(
                 LedgerPostSpec.DebtMovement(
@@ -190,10 +197,12 @@ class DebtRepository(
             )
             debtDao.insertRepayment(repayment)
             val remaining = debt.outstandingPrincipalPaise - principalPaise
+            val remainingInterest = interestDue - interestPaise
             debtDao.updateDebt(
                 debt.copy(
                     outstandingPrincipalPaise = remaining,
-                    status = if (remaining == 0L) DebtStatus.SETTLED else DebtStatus.ACTIVE,
+                    interestOutstandingPaise = remainingInterest,
+                    status = if (remaining == 0L && remainingInterest == 0L) DebtStatus.SETTLED else DebtStatus.ACTIVE,
                     updatedAtEpochMs = now
                 )
             )
