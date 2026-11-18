@@ -225,6 +225,36 @@ class DebtRepositoryTest {
     }
 
     @Test
+    fun `editing debt principal replaces initial ledger movement and preserves repayments`() = runTest {
+        val bank = engine.createAccount(
+            CreateAccountSpec(id = "debt_principal_edit_bank", name = "Principal Edit Bank", accountType = AccountType.BANK, openingBalancePaise = 100000L)
+        )
+        val debt = repository.createDebt(
+            title = "Principal edit", personName = "Ravi", type = DebtType.LENT,
+            principalPaise = 30000L, accountId = bank.id, idempotencyKey = "principal-edit-create"
+        )
+        repository.recordRepayment(
+            debtId = debt.id, principalPaise = 5000L, interestPaise = 0L,
+            paymentAccountId = bank.id, idempotencyKey = "principal-edit-repay"
+        )
+        repository.updateDebtDetails(
+            debtId = debt.id,
+            title = "Updated principal",
+            personName = "Ravi",
+            dueEpochMs = System.currentTimeMillis() + 86_400_000L,
+            notes = "Updated terms",
+            principalPaise = 40000L
+        )
+        val updated = repository.getDebt(debt.id)!!
+        assertEquals(40000L, updated.principalPaise)
+        assertEquals(35000L, updated.outstandingPrincipalPaise)
+        assertEquals("Updated principal", updated.title)
+        assertEquals(65000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertEquals(1, database.debtDao().getRepayments(debt.id).size)
+        assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
+    }
+
+    @Test
     fun `failed repayment edit rolls back without voiding original transaction`() = runTest {
         val bank = engine.createAccount(
             CreateAccountSpec(id = "debt_rollback_bank", name = "Rollback Bank", accountType = AccountType.BANK, openingBalancePaise = 100000L)
