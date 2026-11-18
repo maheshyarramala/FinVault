@@ -318,7 +318,7 @@ fun DebtManagementScreen(
                         val dueLocalDate = Instant.ofEpochMilli(dueEpochMs)
                             .atZone(ZoneId.systemDefault()).toLocalDate()
                         val overdue = debt.status.name == "ACTIVE" &&
-                            debt.outstandingPrincipalPaise > 0L && dueLocalDate.isBefore(LocalDate.now())
+                            (debt.outstandingPrincipalPaise > 0L || debt.interestOutstandingPaise > 0L) && dueLocalDate.isBefore(LocalDate.now())
                         Text(
                             text = if (overdue) "Overdue • Due ${dueLocalDate}" else "Due ${dueLocalDate}",
                             color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
