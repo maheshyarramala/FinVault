@@ -7,6 +7,8 @@ import com.example.core.data.repository.AccountRepository
 import com.example.core.data.repository.DebtRepository
 import com.example.core.database.entity.AccountEntity
 import com.example.core.database.entity.DebtRecordEntity
+import com.example.core.database.entity.DebtRepaymentEntity
+import kotlinx.coroutines.flow.Flow
 import com.example.core.database.entity.DebtInterestType
 import com.example.core.database.entity.DebtType
 import java.math.BigDecimal
@@ -116,6 +118,49 @@ class DebtManagementViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
                 DebtManagementViewModel(debtRepository, accountRepository) as T
+        }
+    }
+
+
+    fun observeRepayments(debtId: String): Flow<List<DebtRepaymentEntity>> =
+        debtRepository.observeRepayments(debtId)
+
+    fun updateDebtDetails(debtId: String, title: String, person: String, dueDate: String, notes: String) {
+        viewModelScope.launch {
+            runCatching {
+                val dueEpochMs = dueDate.trim().takeIf { it.isNotEmpty() }?.let { date ->
+                    LocalDate.parse(date).atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                }
+                debtRepository.updateDebtDetails(debtId, title, person, dueEpochMs, notes)
+            }.onSuccess {
+                _uiState.update { it.copy(message = "Debt details updated", error = null) }
+            }.onFailure { error ->
+                _uiState.update { it.copy(error = error.message ?: "Unable to update debt", message = null) }
+            }
+        }
+    }
+
+    fun editLatestRepayment(repaymentId: String, principal: String, interest: String, accountId: String, paidAtEpochMs: Long) {
+        viewModelScope.launch {
+            runCatching {
+                debtRepository.editLatestRepayment(
+                    repaymentId, principal.toPaise(), interest.ifBlank { "0" }.toPaise(), accountId, paidAtEpochMs
+                )
+            }.onSuccess {
+                _uiState.update { it.copy(message = "Latest repayment updated", error = null) }
+            }.onFailure { error ->
+                _uiState.update { it.copy(error = error.message ?: "Unable to edit repayment", message = null) }
+            }
+        }
+    }
+
+    fun deleteLatestRepayment(repaymentId: String) {
+        viewModelScope.launch {
+            runCatching { debtRepository.deleteLatestRepayment(repaymentId) }
+                .onSuccess { _uiState.update { it.copy(message = "Latest repayment deleted and ledger reversed", error = null) } }
+                .onFailure { error ->
+                    _uiState.update { it.copy(error = error.message ?: "Unable to delete repayment", message = null) }
+                }
         }
     }
 
