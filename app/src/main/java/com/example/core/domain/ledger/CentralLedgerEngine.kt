@@ -211,9 +211,6 @@ class CentralLedgerEngine(
         val original = ledgerDao.getTransactionById(transactionId)
             ?: throw IllegalArgumentException("Transaction not found: $transactionId")
         check(!original.isVoided) { "Transaction $transactionId is already voided" }
-        check(original.txType != LedgerTransactionType.REVERSAL) {
-            "Cannot reverse a reversal transaction"
-        }
 
         val now = DateTimeUtils.nowEpochMs()
         val reversalId = postReversalEntries(
