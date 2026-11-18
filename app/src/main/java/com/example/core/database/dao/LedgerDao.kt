@@ -185,10 +185,10 @@ interface LedgerDao {
 
     @Query(
         "SELECT * FROM ledger_transactions WHERE source_module = 'DEBT' " +
-            "AND source_record_id = :debtId AND is_voided = 0 " +
+            "AND source_record_id = :debtId " +
             "ORDER BY created_at_epoch_ms DESC, tx_timestamp_epoch_ms DESC"
     )
-    suspend fun getActiveDebtTransactions(debtId: String): List<LedgerTransactionEntity>
+    suspend fun getAllDebtTransactions(debtId: String): List<LedgerTransactionEntity>
 
     @Transaction
     @Query("SELECT * FROM ledger_transactions WHERE id = :transactionId LIMIT 1")
