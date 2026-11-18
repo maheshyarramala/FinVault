@@ -407,7 +407,6 @@ object FinVaultMigrations {
 
     val MIGRATION_4_5: Migration = object : Migration(4, 5) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            db.execSQL("ALTER TABLE `debt_records` ADD COLUMN `interest_outstanding_paise` INTEGER NOT NULL DEFAULT 0")
             db.execSQL(
                 """
                 CREATE TABLE IF NOT EXISTS `debt_records` (
@@ -417,6 +416,7 @@ object FinVaultMigrations {
                     `type` TEXT NOT NULL,
                     `principal_paise` INTEGER NOT NULL,
                     `outstanding_principal_paise` INTEGER NOT NULL,
+                    `interest_outstanding_paise` INTEGER NOT NULL DEFAULT 0,
                     `annual_interest_rate_bps` INTEGER NOT NULL,
                     `interest_type` TEXT NOT NULL,
                     `fixed_interest_paise` INTEGER NOT NULL,
