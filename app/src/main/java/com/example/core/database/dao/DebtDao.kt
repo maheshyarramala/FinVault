@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Update
 import com.example.core.database.entity.DebtRecordEntity
 import com.example.core.database.entity.DebtRepaymentEntity
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +35,9 @@ interface DebtDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertRepayment(repayment: DebtRepaymentEntity)
+
+    @Update
+    suspend fun updateRepayment(repayment: DebtRepaymentEntity)
 
     @Query("SELECT * FROM debt_repayments WHERE idempotency_key = :key LIMIT 1")
     suspend fun getRepaymentByIdempotencyKey(key: String): DebtRepaymentEntity?
