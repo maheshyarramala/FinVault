@@ -60,6 +60,7 @@ class DebtRepositoryTest {
             accountId = bank.id,
             interestType = DebtInterestType.SIMPLE,
             annualInterestRateBps = 1200,
+            startEpochMs = System.currentTimeMillis() - 365L * 24L * 60L * 60L * 1000L,
             idempotencyKey = "ravi-loan-001"
         )
         assertEquals(70000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
@@ -97,6 +98,9 @@ class DebtRepositoryTest {
             type = DebtType.BORROWED,
             principalPaise = 20000L,
             accountId = bank.id,
+            interestType = DebtInterestType.SIMPLE,
+            annualInterestRateBps = 1200,
+            startEpochMs = System.currentTimeMillis() - 365L * 24L * 60L * 60L * 1000L,
             idempotencyKey = "family-borrow-001"
         )
         assertEquals(70000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
@@ -104,11 +108,11 @@ class DebtRepositoryTest {
         repository.recordRepayment(
             debtId = debt.id,
             principalPaise = 20000L,
-            interestPaise = 1000L,
+            interestPaise = 2400L,
             paymentAccountId = bank.id,
             idempotencyKey = "family-pay-001"
         )
-        assertEquals(49000L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
+        assertEquals(47600L, database.accountDao().getAccountById(bank.id)!!.currentBalancePaise)
         assertEquals(0L, repository.getDebt(debt.id)!!.outstandingPrincipalPaise)
         assertEquals("SETTLED", repository.getDebt(debt.id)!!.status.name)
         assertTrue(engine.verifyGlobalLedgerIntegrity().isFullyHealthy)
