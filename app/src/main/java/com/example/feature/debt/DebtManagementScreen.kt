@@ -1,5 +1,11 @@
 package com.example.feature.debt
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,12 +33,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.common.MoneyPaise
 import com.example.core.database.entity.DebtType
 import com.example.core.database.entity.DebtInterestType
 import com.example.core.database.entity.AccountType
+import com.example.core.database.entity.DebtRepaymentEntity
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -43,6 +52,18 @@ fun DebtManagementScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var notificationsAllowed by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < 33 ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> notificationsAllowed = granted }
+    var searchQuery by remember { mutableStateOf("") }
+    var debtFilter by remember { mutableStateOf("ACTIVE") }
     var title by remember { mutableStateOf("") }
     var person by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
@@ -179,9 +200,37 @@ fun DebtManagementScreen(
             }
         }
         item {
-            Text("Your debts", style = MaterialTheme.typography.titleLarge)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Your debts", style = MaterialTheme.typography.titleLarge)
+                if (!notificationsAllowed && Build.VERSION.SDK_INT >= 33) {
+                    TextButton(onClick = {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }) { Text("Enable reminders") }
+                }
+            }
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Search debts or people") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("ACTIVE", "SETTLED", "ALL").forEach { filter ->
+                    FilterChip(selected = debtFilter == filter, onClick = { debtFilter = filter },
+                        label = { Text(filter.lowercase().replaceFirstChar { it.uppercase() }) })
+                }
+            }
+            if (!notificationsAllowed && Build.VERSION.SDK_INT >= 33) {
+                Text("Due dates remain visible in the app, but Android notifications are disabled until permission is granted.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            }
         }
-        if (state.debts.isEmpty() && !state.isLoading) {
+        val visibleDebts = state.debts.filter { debt ->
+            (debtFilter == "ALL" || debt.status.name == debtFilter) &&
+                (searchQuery.isBlank() || debt.title.contains(searchQuery, true) || debt.personName.contains(searchQuery, true))
+        }
+        if (visibleDebts.isEmpty() && !state.isLoading) {
             item {
                 Text(
                     "No debts recorded yet. Add money you have lent or borrowed above.",
@@ -190,7 +239,22 @@ fun DebtManagementScreen(
                 )
             }
         }
-        items(state.debts, key = { it.id }) { debt ->
+        items(visibleDebts, key = { it.id }) { debt ->
+            val repayments by viewModel.observeRepayments(debt.id).collectAsState(initial = emptyList())
+            var showDetails by remember(debt.id) { mutableStateOf(false) }
+            var showEditDebt by remember(debt.id) { mutableStateOf(false) }
+            var editTitle by remember(debt.id) { mutableStateOf(debt.title) }
+            var editPerson by remember(debt.id) { mutableStateOf(debt.personName) }
+            var editDueDate by remember(debt.id) {
+                mutableStateOf(debt.dueEpochMs?.let {
+                    Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+                } ?: "")
+            }
+            var editNotes by remember(debt.id) { mutableStateOf(debt.notes.orEmpty()) }
+            var editingRepayment by remember(debt.id) { mutableStateOf<DebtRepaymentEntity?>(null) }
+            var deletingRepayment by remember(debt.id) { mutableStateOf<DebtRepaymentEntity?>(null) }
+            var editRepaymentPrincipal by remember(debt.id) { mutableStateOf("") }
+            var editRepaymentInterest by remember(debt.id) { mutableStateOf("0") }
             var repayPrincipal by remember(debt.id) { mutableStateOf("") }
             var repayInterest by remember(debt.id) { mutableStateOf("0") }
             var showArchiveConfirm by remember(debt.id) { mutableStateOf(false) }
