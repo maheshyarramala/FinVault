@@ -42,7 +42,7 @@ interface DebtDao {
     suspend fun getRepaymentById(repaymentId: String): DebtRepaymentEntity?
 
     @Query("SELECT * FROM debt_repayments WHERE id = :repaymentId LIMIT 1")
-    suspend fun getRepaymentsForEditById(repaymentId: String): List<DebtRepaymentEntity>
+    suspend fun getRepaymentById(repaymentId: String): DebtRepaymentEntity?
 
     @androidx.room.Delete
     suspend fun deleteRepayment(repayment: DebtRepaymentEntity)
