@@ -210,11 +210,35 @@ class FinVaultMigrationTest {
         migratedDb.close()
     }
 
+    @Test
+    fun `migrate 4 to 5 creates debt tables and idempotency index without data loss`() {
+        val migratedDb = helper.createDatabase(TEST_DB_4_5, 4).apply {
+            FinVaultMigrations.MIGRATION_4_5.migrate(this)
+        }
+        listOf("debt_records", "debt_repayments").forEach { table ->
+            migratedDb.query(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '$table'"
+            ).use { cursor ->
+                assertEquals(true, cursor.moveToFirst())
+                assertEquals(1, cursor.getInt(0))
+            }
+        }
+        migratedDb.query(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' " +
+                "AND name = 'index_debt_repayments_idempotency_key'"
+        ).use { cursor ->
+            assertEquals(true, cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(0))
+        }
+        migratedDb.close()
+    }
+
     companion object {
         private const val TEST_DB = "finvault_migration_test.db"
         private const val TEST_DB_2_3 = "finvault_migration_2_3_test.db"
         private const val TEST_DB_1_3 = "finvault_migration_1_3_test.db"
         private const val TEST_DB_3_4 = "finvault_migration_3_4_test.db"
         private const val TEST_DB_1_4 = "finvault_migration_1_4_test.db"
+        private const val TEST_DB_4_5 = "finvault_migration_4_5_test.db"
     }
 }
