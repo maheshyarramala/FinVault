@@ -326,11 +326,13 @@ class CentralLedgerEngine(
             "Original transaction ${original.id} has no ledger entries"
         }
 
-        ledgerDao.markTransactionVoided(
-            transactionId = original.id,
-            replacedById = replacedById,
-            updatedAtEpochMs = now
-        )
+        if (!original.isVoided) {
+            ledgerDao.markTransactionVoided(
+                transactionId = original.id,
+                replacedById = replacedById,
+                updatedAtEpochMs = now
+            )
+        }
 
         val reversalTxId = UUID.randomUUID().toString()
         val flippedEntries = originalEntries.mapIndexed { index, entry ->
